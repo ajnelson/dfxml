@@ -407,6 +407,12 @@ class registry_cell_object:
         """
         return None
 
+    def md5(self):
+        """
+        Return None. Meant to be overwritten.
+        """
+        return None
+
 class registry_key_object(registry_cell_object):
     def __init__(self):
         registry_cell_object.__init__(self)
@@ -428,6 +434,8 @@ class registry_value_object(registry_cell_object):
 
         self._cell_type = "registry_value_object"
         
+        self._hashcache = dict()
+
         """List for the string-list type of value."""
         self.strings = None
 
@@ -439,14 +447,14 @@ class registry_value_object(registry_cell_object):
     #    else:
     #        return None
 
-    def sha1(self):
+    def _hash(self, hashfunc):
         """
         Return cached hash, populating cache if necessary.
         If self.value_data is None, this should return None.
         """
-        if self._sha1 is None:
-            if self.value_data != None:
-                h = hashlib.sha1()
+        if self._hashcache.get(repr(hashfunc)) is None:
+            if not self.value_data is None:
+                h = hashfunc()
                 if type(self.value_data) == type(""):
                     #String data take a little extra care:
                     #"The bytes in your ... file are being automatically decoded to Unicode by Python 3 as you read from the file"
@@ -454,8 +462,14 @@ class registry_value_object(registry_cell_object):
                     h.update(self.value_data.encode("utf-8"))
                 else:
                     h.update(self.value_data)
-                self._sha1 = h.hexdigest()
-        return self._sha1
+                self._hashcache[repr(hashfunc)] = h.hexdigest()
+        return self._hashcache.get(repr(hashfunc))
+
+    def sha1(self):
+        return self._hash(hashlib.sha1)
+
+    def md5(self):
+        return self._hash(hashlib.md5)
 
 class fileobject:
     """The base class for file objects created either through XML DOM or EXPAT"""
@@ -660,13 +674,14 @@ class fileobject:
                     fstype = self.volume.ftype_str()
                     if fstype != None:
                         fstype_flag = '-f' + fstype
-                        cmd = ['icat',fstype_flag,'-b',str(block_size),'-o',str(offset/block_size),imagefile.name,str(inode)]
+                        cmd = ['icat',fstype_flag,'-b',str(block_size),'-o',str(offset//block_size),imagefile.name,str(inode)]
                     else:
-                        cmd = ['icat','-b',str(block_size),'-o',str(offset/block_size),imagefile.name,str(inode)]
+                        cmd = ['icat','-b',str(block_size),'-o',str(offset//block_size),imagefile.name,str(inode)]
                     (data,err) = Popen(cmd, stdout=PIPE,stderr=PIPE).communicate()
                     # Check for an error
                     if len(err) > 0 :
-                        raise ValueError("icat error (" + err.strip() + "): "+" ".join(cmd))
+                        #sys.stderr.write("Debug: type(err) = %r.\n" % type(err))
+                        raise ValueError("icat error (" + str(err).strip() + "): "+" ".join(cmd))
                     return data
                 else :
                     raise ValueError("Inode missing from file in compressed format.")
