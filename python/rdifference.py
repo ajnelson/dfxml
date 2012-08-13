@@ -15,7 +15,7 @@ Process:
 
 #AJN This script does not call out duplicate paths, but they are reported.
 
-import sys,fiwalk,dfxml,time
+import sys,fiwalk,dfxml,time,logging
 if sys.version_info < (3,1):
     raise RuntimeError("rdifference.py requires Python 3.1 or above")
 
@@ -31,7 +31,7 @@ def ptime(t):
 
 def dprint(x):
     global options
-    if options.debug: print(x)
+    logging.debug(x)
 
 def header():
     if options.html:
@@ -163,7 +163,7 @@ class HiveState:
     def process(self,fname):
         self.current_fname = fname
         if fname.endswith(".regxml"):
-            reader = dfxml.read_regxml(xmlfile=open(infile,'rb'), callback=self.process_cell)
+            reader = dfxml.read_regxml(xmlfile=open(self.current_fname,'rb'), callback=self.process_cell)
 
     def print_cells(self,title,cells):
         h2(title)
@@ -301,6 +301,13 @@ if __name__=="__main__":
     parser.add_option("--timestamp",help="output all times in Unix timestamp format; otherwise use ISO 8601",action="store_true")
 
     (options,args) = parser.parse_args()
+
+    #Set up logging
+    logging.basicConfig(
+      format='%(asctime)s %(levelname)s: %(message)s',
+      datefmt='%Y-%m-%dT%H:%M:%SZ',
+      level=logging.DEBUG if options.debug else logging.INFO
+    )
 
     if len(args)<1:
         parser.print_help()
