@@ -154,7 +154,7 @@ class HiveState:
             elif type(ocell) != type(cell):
                 dprint("      >>> Cell structural type changed")
                 self.changed_properties.add((ocell,cell))
-            elif ( (ocell.parent_key and ocell.parent_key.mtime() or None ) != ( (cell.parent_key and cell.parent_key.mtime()) or None ):
+            elif ( (ocell.parent_key and ocell.parent_key.mtime()) or None ) != ( (cell.parent_key and cell.parent_key.mtime()) or None ):
                 dprint("      >>> Parent mtimes changed")
                 self.changed_properties.add((ocell,cell))
 
