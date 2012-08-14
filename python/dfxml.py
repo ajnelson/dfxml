@@ -464,6 +464,7 @@ class registry_cell_object:
     def type(self):
         """
         This is the data type of the cell.  Keys can be root or not-root; values have several types, like UTF-8, binary, etc.
+        Presently, this exports as a string representation of the type, not the numeric type code.
         """
         return self._type
 
