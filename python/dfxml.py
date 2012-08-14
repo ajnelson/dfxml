@@ -456,18 +456,27 @@ class registry_value_object(registry_cell_object):
     def _hash(self, hashfunc):
         """
         Return cached hash, populating cache if necessary.
-        If self.value_data is None, this should return None.
+        If self.value_data is None, or there are no strings in a "string-list" type, this should return None.
+        Interpretation: Registry values of type "string-list" are hashed by feeding each element of the list into the hash .update() function. All other Registry values are fed in the same way, as a 1-element list. The value "a" outputs as md5("a") (if hashlib.md5 were requested).
         """
         if self._hashcache.get(repr(hashfunc)) is None:
-            if not self.value_data is None:
-                h = hashfunc()
-                if type(self.value_data) == type(""):
+            feed_list = []
+            if self.type() == "string-list":
+                feed_list = self.strings
+            elif not self.value_data is None:
+                feed_list.append(self.value_data)
+            #Normalize to hash .update() required type
+            for (elemindex, elem) in enumerate(feed_list):
+                if type(elem) == type(""):
                     #String data take a little extra care:
                     #"The bytes in your ... file are being automatically decoded to Unicode by Python 3 as you read from the file"
                     #http://stackoverflow.com/a/7778340/1207160
-                    h.update(self.value_data.encode("utf-8"))
-                else:
-                    h.update(self.value_data)
+                    feed_list[elemindex] = elem.encode("utf-8")
+            #Hash if there's data to hash
+            if len(feed_list) > 0:
+                h = hashfunc()
+                for elem in feed_list:
+                    h.update(elem)
                 self._hashcache[repr(hashfunc)] = h.hexdigest()
         return self._hashcache.get(repr(hashfunc))
 
