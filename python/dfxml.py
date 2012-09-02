@@ -82,10 +82,10 @@ def parse_iso8601(ts):
 
 
 import re
-tz_offset = re.compile("(\d\d\d\d)-(\d\d)-(\d\d)[T ](\d\d):(\d\d):(\d\d)(\.\d+)?(Z|[-+]\d+)?$")
+rx_iso8601 = re.compile("(\d\d\d\d)-(\d\d)-(\d\d)[T ](\d\d):(\d\d):(\d\d)(\.\d+)?(Z|[-+]\d+)?$")
 def iso8601Tdatetime(s):
     """SLG's conversion of ISO8601 to datetime"""
-    m = tz_offset.search(s)
+    m = rx_iso8601.search(s)
     if not m:
         raise ValueError("Cannot parse: "+s)
     # Get the microseconds
@@ -112,6 +112,64 @@ def iso8601Tdatetime(s):
         return datetime.datetime(int(m.group(1)),int(m.group(2)),int(m.group(3)),
                                  int(m.group(4)),int(m.group(5)),int(m.group(6)),
                                  microseconds)
+
+#TODO Change name around. rfc822 isn't the best name for this kind of date; it appears in two other forms in the HTTP RFC
+rx_rfc822datetime = re.compile("(?P<day>\d{1,2}) (?P<month>Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (?P<year>\d{4}) (?P<hours>\d\d):(?P<minutes>\d\d):(?P<seconds>\d\d) (?P<timezone>Z|[-+]\d{4})$")
+three_letter_month_dict = {
+  "Jan": 1,
+  "Feb": 2,
+  "Mar": 3,
+  "Apr": 4,
+  "May": 5,
+  "Jun": 6,
+  "Jul": 7,
+  "Aug": 8,
+  "Sep": 9,
+  "Oct": 10,
+  "Nov": 11,
+  "Dec": 12
+}
+def rfc822Tdatetime(s):
+    """
+    AJN's conversion of times occurring in RFC 822 data to datetime.
+    Follow's SLG's pattern.
+    """
+    m = rx_rfc822datetime.search(s)
+    if not m:
+        raise ValueError("Cannot parse as an RFC 822 timestamp: %r." % s)
+    mgd = m.groupdict()
+    # Figure tz offset
+    offset = None
+    minoffset = None
+    match_timezone = mgd.get("timezone")
+    if match_timezone:
+        if match_timezone == "Z":
+            minoffset = 0
+        elif match_timezone[0] in ["-+"]:
+            minoffset = int(match_timezone[0:-2]) * 60 + int(match_timezone[-2:])
+    #TODO SLG didn't use the offset variable...what is it for then, with the minoffset?
+    if minoffset:
+        return datetime.datetime(
+          int(mgd["year"]),
+          three_letter_month_dict[mgd["month"]],
+          int(mgd["day"]),
+          int(mgd["hours"]),
+          int(mgd["minutes"]),
+          int(mgd["seconds"]),
+          0,
+          GMTMIN(minoffset)
+        )
+    else:
+        return datetime.datetime(
+          int(mgd["year"]),
+          three_letter_month_dict[mgd["month"]],
+          int(mgd["day"]),
+          int(mgd["hours"]),
+          int(mgd["minutes"]),
+          int(mgd["seconds"]),
+          0
+        )
+
 ################################################################
 ###
 ###  byte_run class
@@ -251,11 +309,14 @@ class dftime(ComparableMixin):
             _basestring = basestring
         if isinstance(val, str) or isinstance(val,_basestring):
             #
-            #Test for ISO format - "YYYY-MM-DD" should have hyphen at val[4]
+            #Test for ISO 8601 format - "YYYY-MM-DD" should have hyphen at val[4]
             if len(val)>5 and val[4]=="-":
                 self.iso8601_ = val
+            elif len(val) > 15 and val[14]==":":
+                #Maybe the data are instead the timestamp format found in email headers?
+                self.timestamp_ = rfc822Tdatetime(val)
             else:
-                #Maybe the data is a string-wrapped int?
+                #Maybe the data are a string-wrapped int?
                 #If this fails, data is completely unexpected, so just raise error.
                 self.timestamp_ = int(val)
         elif type(val)==int or type(val)==float:
@@ -1390,6 +1451,8 @@ if __name__=="__main__":
         check_greater("2009-11-17T00:33:30.9375Z","2009-11-17T00:33:30Z",True)
         check_equal("2009-11-17T00:33:30.9375Z","2009-11-17T00:33:30Z",False)
         check_equal("2009-11-17T00:33:30.0000Z","2009-11-17T00:33:30Z",True)
+        check_equal("27 Jun 2012 06:02:00 -0000","27 Jun 2012 05:02:00 -0100",True)
+        check_equal("27 Jun 2012 06:02:00 -0000","2012-06-27T06:02:00Z",True)
         print("dftime values passed.")
         print("Testing byte_run overlap engine:")
         db = extentdb()
