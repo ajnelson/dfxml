@@ -338,6 +338,9 @@ class dftime(ComparableMixin):
                 self.timestamp_ = int(val)
         elif type(val)==int or type(val)==float:
             self.timestamp_ = val
+        elif isinstance(val, datetime.datetime):
+            self.datetime_ = val
+            #TODO Unit-test this with a timezone-less datetime
         elif val==None:
             self.timestamp_ = None
             self.iso8601_   = None
