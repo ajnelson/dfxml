@@ -329,8 +329,9 @@ class dftime(ComparableMixin):
             #Test for ISO 8601 format - "YYYY-MM-DD" should have hyphen at val[4]
             if len(val)>5 and val[4]=="-":
                 self.iso8601_ = val
-            elif len(val) > 15 and val[14]==":":
+            elif len(val) > 15 and ":" in val[13:15]:
                 #Maybe the data are instead the timestamp format found in email headers?
+                #(The check for 13:15 gets the 14th and 15th characters, since the day can be single- or double-digit.)
                 self.datetime_ = rfc822Tdatetime(val)
             else:
                 #Maybe the data are a string-wrapped int?
