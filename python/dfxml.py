@@ -119,7 +119,7 @@ def iso8601Tdatetime(s):
                                  int(m.group(4)),int(m.group(5)),int(m.group(6)),
                                  microseconds)
 
-#TODO Change name around. rfc822 isn't the best name for this kind of date; it appears in two other forms in the HTTP RFC
+#This format is as specified in RFC 822, section 5.1.  It appears in email and HTTP headers.
 rx_rfc822datetime = re.compile("(?P<day>\d{1,2}) (?P<month>Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (?P<year>\d{4}) (?P<hours>\d\d):(?P<minutes>\d\d):(?P<seconds>\d\d) (?P<timezone>Z|[-+]\d\d:?\d\d)")
 three_letter_month_dict = {
   "Jan": 1,
