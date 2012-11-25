@@ -538,8 +538,10 @@ class registry_value_object(registry_cell_object):
     def _hash(self, hashfunc):
         """
         Return cached hash, populating cache if necessary.
+        hashfunc expected values: The functions hashlib.sha1, hashlib.md5.
         If self.value_data is None, or there are no strings in a "string-list" type, this should return None.
-        Interpretation: Registry values of type "string-list" are hashed by feeding each element of the list into the hash .update() function. All other Registry values are fed in the same way, as a 1-element list. The value "a" outputs as md5("a") (if hashlib.md5 were requested).
+        Interpretation: Registry values of type "string-list" are hashed by feeding each element of the list into the hash .update() function. All other Registry values are fed in the same way, as a 1-element list.
+        For example, a string type value cell with data "a" fed into this function returns md5("a") (if hashlib.md5 were requested).  A string-list type value cell with data ["a","b"] returns md5("ab").
         """
         if self._hashcache.get(repr(hashfunc)) is None:
             feed_list = []
@@ -1126,7 +1128,7 @@ class regxml_reader(xml_reader):
         elif name in ["string"]:
             value_object = self.objectstack[-1]
             if value_object.strings == None:
-                raise ValueError("regxml_reader._end_element:  parsing error, string found but parent's type can't support a string list.")
+                raise ValueError("regxml_reader._end_element:  parsing error, string element found, but parent's type can't support a string list.")
             value_object.strings.append(self.cdata)
             self.cdata = None
         elif name in ["byte_runs","byte_run"]:
