@@ -335,7 +335,7 @@ class dftime(ComparableMixin):
                 self.datetime_ = rfc822Tdatetime(val)
             else:
                 #Maybe the data are a string-wrapped int?
-                #If this fails, data is completely unexpected, so just raise error.
+                #If this fails, the string format is completely unexpected, so just raise an error.
                 self.timestamp_ = int(val)
         elif type(val)==int or type(val)==float:
             self.timestamp_ = val
