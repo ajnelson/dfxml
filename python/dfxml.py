@@ -153,7 +153,7 @@ def rfc822Tdatetime(s):
             minoffset = 0
         elif match_timezone[0] in "-+":
             minoffset = int(match_timezone[0:-2]) * 60 + int(match_timezone[-2:])
-    #TODO SLG didn't use the offset variable...what is it for then, with the minoffset?
+    #TODO Find a reason to use the 'offset' variable? (Hour offset, vs. minute offset?)
     if minoffset:
         return datetime.datetime(
           int(mgd["year"]),
