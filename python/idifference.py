@@ -257,6 +257,7 @@ class DiskState:
 <dfxml version='1.0'>
   <metadata
   xmlns='http://www.forensicswiki.org/wiki/Category:Digital_Forensics_XML'
+  xmlns:delta='none yet'
   xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'
   xmlns:dc='http://purl.org/dc/elements/1.1/'>
     <dc:type>Disk Image Delta</dc:type>
@@ -275,9 +276,39 @@ class DiskState:
           "program": os.path.basename(sys.argv[0]),
           "version": __version__
         })
+        print("<!--Disk image: "+self.current_fname + "-->")
+        #TODO Add new_volumes
+        new_files_list = list(self.new_files)
+        for nfi in new_files_list:
+            print("<!--New file object:" + nfi.filename() + "-->")
+            print(dir(nfi))
+            break
+        changed_properties_xmls = []
+        for (ofi,nfi) in self.changed_properties:
+            print("<!--Changed-property file object:" + nfi.filename() + "-->")
+            new_xml_parts = []
+            new_xml_parts.append("    <fileobject delta:changed_property='1'>")
+            new_xml_parts.append("      <filename>" + nfi.filename() + "</filename>")
+#            if ofi.atime() != fi.atime() or \
+#                    ofi.mtime() != fi.mtime() or \
+#                    ofi.crtime() != fi.crtime() or \
+#                    ofi.ctime() != fi.ctime():
+            if False:
+                new_xml_parts.append("      ")
+            if False:
+                new_xml_parts.append("      ")
+            if False:
+                new_xml_parts.append("      ")
+            if False:
+                new_xml_parts.append("      ")
+            if ofi.sha1() != nfi.sha1():
+                new_xml_parts.append("      <hashdigest type='sha1' delta:pre='1'>" + ofi.sha1() + "</hashdigest>")
+                new_xml_parts.append("      <hashdigest type='sha1' delta:post='1'>" + nfi.sha1() + "</hashdigest>")
+                #TODO Add byte runs
+            new_xml_parts.append("    </fileobject>")
+            changed_properties_xmls.append("\n".join(new_xml_parts.append))
         print("</dfxml>")
         return
-        h1("Disk image:"+self.current_fname)
         self.print_fis("New Files:",self.new_files)
         self.print_fis("Deleted Files:",self.fnames.values())
         self.print_fi2("Renamed Files:",self.renamed_files)
