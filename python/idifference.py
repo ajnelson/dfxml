@@ -14,7 +14,9 @@ Process:
 4. Replace the old maps with the new maps
 """
 
-import sys,fiwalk,dfxml,time
+__version__ = "0.0.0"
+
+import os,sys,fiwalk,dfxml,time
 if sys.version_info < (3,1):
     raise RuntimeError("idifference.py now requires Python 3.1 or above")
 
@@ -250,8 +252,31 @@ class DiskState:
         h2("Timeline")
         table(prt)
 
-    def report(self):
-        header()
+    def xml_report(self):
+        print("""<?xml version="1.0"?>
+<dfxml version='1.0'>
+  <metadata
+  xmlns='http://www.forensicswiki.org/wiki/Category:Digital_Forensics_XML'
+  xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'
+  xmlns:dc='http://purl.org/dc/elements/1.1/'>
+    <dc:type>Disk Image Delta</dc:type>
+  </metadata>
+  <creator version='1.0'>
+    <program>%(program)s</program>
+    <version>%(version)s</version>
+    <execution_environment>
+      <command_line>%(command_line)s</command_line>
+    </execution_environment>
+  </creator>
+  <source>
+    <!--TODO-->
+  </source>""" % {
+          "command_line": " ".join(sys.argv),
+          "program": os.path.basename(sys.argv[0]),
+          "version": __version__
+        })
+        print("</dfxml>")
+        return
         h1("Disk image:"+self.current_fname)
         self.print_fis("New Files:",self.new_files)
         self.print_fis("Deleted Files:",self.fnames.values())
@@ -382,7 +407,7 @@ if __name__=="__main__":
 
     s = DiskState(notimeline=options.notimeline, summary=options.summary, include_dotdirs=options.include_dotdirs)
     for infile in args:
-        print(">>> Reading %s" % infile)
+        dprint(">>> Reading %s" % infile)
         s.process(infile)
         if infile!=args[0]:
             # Not the first file. Report and optionally archive
@@ -391,5 +416,5 @@ if __name__=="__main__":
                 if imagefilename.endswith(".xml"):
                     imagefilename = options.imagefile
                 s.output_archive(imagefile=open(imagefilename),tarname=options.tarfile,zipname=options.zipfile)
-            s.report()
+            s.xml_report()
         s.next()
