@@ -167,7 +167,7 @@ class DiskState:
             if ofi.sha1()!=fi.sha1():
                 dprint("      >>> sha1 changed")
                 self.changed_content.add((ofi,fi))
-            elif ofi.atime() != fi.atime() or \
+            if ofi.atime() != fi.atime() or \
                     ofi.mtime() != fi.mtime() or \
                     ofi.crtime() != fi.crtime() or \
                     ofi.ctime() != fi.ctime():
@@ -283,38 +283,42 @@ class DiskState:
             print("<!--New file object:" + nfi.filename() + "-->")
             print(dir(nfi))
             break
-        changed_properties_xmls = []
-        for (ofi,nfi) in self.changed_properties:
-            print("<!--Changed-property file object:" + nfi.filename() + "-->")
-            new_xml_parts = []
-            new_xml_parts.append("    <fileobject delta:changed_property='1'>")
-            new_xml_parts.append("      <filename>" + nfi.filename() + "</filename>")
-#            if ofi.atime() != fi.atime() or \
-#                    ofi.mtime() != fi.mtime() or \
-#                    ofi.crtime() != fi.crtime() or \
-#                    ofi.ctime() != fi.ctime():
-            if False:
-                new_xml_parts.append("      ")
-            if False:
-                new_xml_parts.append("      ")
-            if False:
-                new_xml_parts.append("      ")
-            if False:
-                new_xml_parts.append("      ")
-            if ofi.sha1() != nfi.sha1():
-                new_xml_parts.append("      <hashdigest type='sha1' delta:pre='1'>" + ofi.sha1() + "</hashdigest>")
-                new_xml_parts.append("      <hashdigest type='sha1' delta:post='1'>" + nfi.sha1() + "</hashdigest>")
-                #TODO Add byte runs
-            new_xml_parts.append("    </fileobject>")
-            changed_properties_xmls.append("\n".join(new_xml_parts.append))
-        print("</dfxml>")
-        return
-        self.print_fis("New Files:",self.new_files)
+
         self.print_fis("Deleted Files:",self.fnames.values())
         self.print_fi2("Renamed Files:",self.renamed_files)
         self.print_fi2("Files with modified content:",self.changed_content)
-        self.print_fi2("Files with changed file properties:",self.changed_properties)
+        #Handle changed properties
+        changed_properties_xmls = []
+        for (ofi,nfi) in self.changed_properties:
+            print("<!--Changed-property file object:" + nfi.filename() + "-->")
+            old_xml_parts = []
+            new_xml_parts = []
+            new_xml_parts.append("    <fileobject delta:changed_property='1'>")
+            new_xml_parts.append("      <filename>" + nfi.filename() + "</filename>")
+            if ofi.mtime() != nfi.mtime():
+                old_xml_parts.append("        <mtime>" + str(ofi.mtime()) + "</mtime>")
+                new_xml_parts.append("      <mtime>" + str(nfi.mtime()) + "</mtime>")
+            if ofi.atime() != nfi.atime():
+                old_xml_parts.append("        <atime>" + str(ofi.atime()) + "</atime>")
+                new_xml_parts.append("      <atime>" + str(nfi.atime()) + "</atime>")
+            if ofi.ctime() != nfi.ctime():
+                old_xml_parts.append("        <ctime>" + str(ofi.ctime()) + "</ctime>")
+                new_xml_parts.append("      <ctime>" + (nfi.ctime()) + "</ctime>")
+            if ofi.crtime() != nfi.crtime():
+                old_xml_parts.append("        <crtime>" + str(ofi.crtime()) + "</crtime>")
+                new_xml_parts.append("      <crtime>" + str(nfi.crtime()) + "</crtime>")
+            if ofi.sha1() != nfi.sha1():
+                old_xml_parts.append("        <hashdigest type='sha1'>" + ofi.sha1() + "</hashdigest>")
+                new_xml_parts.append("      <hashdigest type='sha1'>" + nfi.sha1() + "</hashdigest>")
+            #TODO Add byte runs
+            new_xml_parts.append("      <delta:old_fileobject>")
+            new_xml_parts.append("\n".join(old_xml_parts))
+            new_xml_parts.append("      </delta:old_fileobject>")
+            new_xml_parts.append("    </fileobject>")
+            print("\n".join(new_xml_parts))
+        print("</dfxml>")
         if self.summary:
+            print("<!--")
             h2("Summary:")
             table([
               ("Prior image's file (file object) tally", str(self.fi_tally)),
@@ -327,6 +331,7 @@ class DiskState:
               ("Files with modified content", str(len(self.changed_content))),
               ("Files with changed file properties", str(len(self.changed_properties)))
             ])
+            print("-->")
 
         if self.timeline: self.print_timeline()
 
