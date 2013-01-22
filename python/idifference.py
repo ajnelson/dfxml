@@ -164,14 +164,17 @@ class DiskState:
         ofi = self.fnames.get(fi.filename(),None)
         if ofi:
             dprint("   found ofi")
-            if ofi.sha1()!=fi.sha1():
-                dprint("      >>> sha1 changed")
-                self.changed_content.add((ofi,fi))
             if ofi.atime() != fi.atime() or \
                     ofi.mtime() != fi.mtime() or \
                     ofi.crtime() != fi.crtime() or \
                     ofi.ctime() != fi.ctime():
                 dprint("      >>> time changed")
+                self.changed_properties.add((ofi,fi))
+            elif ofi.sha1()!=fi.sha1():
+                dprint("      >>> sha1 changed")
+                self.changed_content.add((ofi,fi))
+            elif ofi.name_type() != fi.name_type():
+                dprint("      >>> name type changed")
                 self.changed_properties.add((ofi,fi))
 
         # If a new file, note that (and optionally add to the timeline)
@@ -286,15 +289,19 @@ class DiskState:
 
         self.print_fis("Deleted Files:",self.fnames.values())
         self.print_fi2("Renamed Files:",self.renamed_files)
-        self.print_fi2("Files with modified content:",self.changed_content)
+
         #Handle changed properties
-        changed_properties_xmls = []
         for (ofi,nfi) in self.changed_properties:
             print("<!--Changed-property file object:" + nfi.filename() + "-->")
             old_xml_parts = []
             new_xml_parts = []
             new_xml_parts.append("    <fileobject delta:changed_property='1'>")
             new_xml_parts.append("      <filename>" + nfi.filename() + "</filename>")
+            #Report name type (file, directory, etc), and any change
+            new_xml_parts.append("      <name_type>" + nfi.name_type() + "</name_type>")
+            if ofi.name_type() != nfi.name_type():
+                old_xml_parts.append("        <name_type>" + ofi.name_type() + "</name_type>")
+            #Report time changes
             if ofi.mtime() != nfi.mtime():
                 old_xml_parts.append("        <mtime>" + str(ofi.mtime()) + "</mtime>")
                 new_xml_parts.append("      <mtime>" + str(nfi.mtime()) + "</mtime>")
@@ -303,10 +310,11 @@ class DiskState:
                 new_xml_parts.append("      <atime>" + str(nfi.atime()) + "</atime>")
             if ofi.ctime() != nfi.ctime():
                 old_xml_parts.append("        <ctime>" + str(ofi.ctime()) + "</ctime>")
-                new_xml_parts.append("      <ctime>" + (nfi.ctime()) + "</ctime>")
+                new_xml_parts.append("      <ctime>" + str(nfi.ctime()) + "</ctime>")
             if ofi.crtime() != nfi.crtime():
                 old_xml_parts.append("        <crtime>" + str(ofi.crtime()) + "</crtime>")
                 new_xml_parts.append("      <crtime>" + str(nfi.crtime()) + "</crtime>")
+            #Report checksum changes
             if ofi.sha1() != nfi.sha1():
                 old_xml_parts.append("        <hashdigest type='sha1'>" + ofi.sha1() + "</hashdigest>")
                 new_xml_parts.append("      <hashdigest type='sha1'>" + nfi.sha1() + "</hashdigest>")
@@ -316,7 +324,23 @@ class DiskState:
             new_xml_parts.append("      </delta:old_fileobject>")
             new_xml_parts.append("    </fileobject>")
             print("\n".join(new_xml_parts))
-        print("</dfxml>")
+
+        #Handle changed content
+        for (ofi,nfi) in self.changed_content:
+            old_xml_parts = []
+            new_xml_parts = []
+            new_xml_parts.append("    <fileobject delta:changed_content='1'>")
+            new_xml_parts.append("      <filename>" + nfi.filename() + "</filename>")
+            #Report checksum changes
+            if ofi.sha1() != nfi.sha1():
+                old_xml_parts.append("        <!-- Note: Checksum, but not timestamps, changed! -->") 
+                old_xml_parts.append("        <hashdigest type='sha1'>" + ofi.sha1() + "</hashdigest>")
+                new_xml_parts.append("      <hashdigest type='sha1'>" + nfi.sha1() + "</hashdigest>")
+            new_xml_parts.append("      <delta:old_fileobject>")
+            new_xml_parts.append("\n".join(old_xml_parts))
+            new_xml_parts.append("      </delta:old_fileobject>")
+            new_xml_parts.append("    </fileobject>")
+            print("\n".join(new_xml_parts))
         if self.summary:
             print("<!--")
             h2("Summary:")
@@ -333,7 +357,12 @@ class DiskState:
             ])
             print("-->")
 
-        if self.timeline: self.print_timeline()
+        if self.timeline:
+            print("<!--")
+            self.print_timeline()
+            print("-->")
+
+        print("</dfxml>")
 
     def output_archive(self,imagefile=None,tarname=None,zipname=None):
         """Write the changed and/or new files to a tarfile or a ZIP file. """
