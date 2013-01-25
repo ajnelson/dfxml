@@ -161,6 +161,7 @@ class DiskState:
         self.new_fi_tally += 1
 
         # See if this filename changed or was resized
+        #TODO AJN Restore this check
         ofi = self.fnames.get(fi.filename(),None)
         if ofi:
             dprint("   found ofi")
