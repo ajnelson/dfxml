@@ -258,7 +258,9 @@ class DiskState:
         #If unfamiliar with the *-for-args syntax, see:
         #http://docs.python.org/3/tutorial/controlflow.html#unpacking-argument-lists
         #via http://stackoverflow.com/a/5917619/1207160
-        new_fi_volumes, new_fis = zip(*self.new_files)
+        new_fis = set()
+        if len(self.new_files) > 0:
+            new_fi_volumes, new_fis = zip(*self.new_files)
 
         self.print_fis("New Files:",new_fis)
         self.print_fis("Deleted Files:",self.fnames.values())
