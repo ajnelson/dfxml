@@ -115,8 +115,8 @@ class DiskState:
     global options
 
     def __init__(self,notimeline=False,summary=False,include_dotdirs=False):
-        self.new_fnames = dict() # maps from fname -> fi
-        self.new_inodes = dict() # maps from inode_number -> fi
+        self.new_fnames = dict() # maps from (volume offset, fname) -> fi
+        self.new_inodes = dict() # maps from (volume offset, inode_number) -> fi
         self.new_fi_tally = 0
         self.notimeline = notimeline
         self.summary = summary
@@ -131,10 +131,10 @@ class DiskState:
         self.fi_tally = self.new_fi_tally
         self.new_fnames = dict()
         self.new_inodes = dict()
-        self.new_files          = set()     # set of file objects
-        self.renamed_files      = set()     # set of (oldfile,newfile) file objects
-        self.changed_content    = set()     # set of (oldfile,newfile) file objects
-        self.changed_properties = set()     # list of (oldfile,newfile) file objects
+        self.new_files          = set()     # set of file objects, as (volume offset, fi)
+        self.renamed_files      = set()     # set of (volume offset,oldfile,newfile) file object pairs
+        self.changed_content    = set()     # set of (volume offset,oldfile,newfile) file object pairs
+        self.changed_properties = set()     # set of (volume offset,oldfile,newfile) file object pairs
         if self.notimeline:
             self.timeline = None
         else:
@@ -154,27 +154,27 @@ class DiskState:
             return 
 
         # Remember the file for the next generation
-        self.new_fnames[fi.filename()] = fi
-        self.new_inodes[fi.partition() + "/" + fi.inode()] = fi
+        self.new_fnames[(fi.volume.offset, fi.filename())] = fi
+        self.new_inodes[(fi.volume.offset, fi.inode())] = fi
         self.new_fi_tally += 1
 
         # See if this filename changed or was resized
-        ofi = self.fnames.get(fi.filename(),None)
+        ofi = self.fnames.get((fi.volume.offset, fi.filename()),None)
         if ofi:
             dprint("   found ofi")
             if ofi.sha1()!=fi.sha1():
                 dprint("      >>> sha1 changed")
-                self.changed_content.add((ofi,fi))
+                self.changed_content.add((ofi.volume.offset,ofi,fi))
             elif ofi.atime() != fi.atime() or \
                     ofi.mtime() != fi.mtime() or \
                     ofi.crtime() != fi.crtime() or \
                     ofi.ctime() != fi.ctime():
                 dprint("      >>> time changed")
-                self.changed_properties.add((ofi,fi))
+                self.changed_properties.add((ofi.volume.offset,ofi,fi))
 
         # If a new file, note that (and optionally add to the timeline)
         if not ofi:
-            self.new_files.add(fi)
+            self.new_files.add((fi.volume.offset,fi))
             if self.timeline:
                 create_time = fi.crtime()
                 if not create_time: create_time = fi.ctime()
@@ -182,15 +182,15 @@ class DiskState:
                 self.timeline.add((create_time,fi.filename(),"created"))
 
         # Delete files we have seen (so we can find out the files that were deleted)
-        if fi.filename() in self.fnames:
-            del self.fnames[fi.filename()]
+        if (fi.volume.offset, fi.filename()) in self.fnames:
+            del self.fnames[(fi.volume.offset, fi.filename())]
 
         # Look for files that were renamed
-        ofi = self.inodes.get(fi.partition() + "/" + fi.inode(),None)
+        ofi = self.inodes.get((fi.volume.offset, fi.inode()),None)
         if ofi and ofi.filename() != fi.filename() and ofi.sha1()==fi.sha1():
             #Never consider current-directory or parent-directory for rename operations.  Because we match on partition+inode numbers, these trivially match.
             if not (fi.filename().endswith("/.") or fi.filename().endswith("/..") or ofi.filename().endswith("/.") or ofi.filename().endswith("/..")):
-                self.renamed_files.add((ofi,fi))
+                self.renamed_files.add((ofi.volume.offset, ofi,fi))
 
     def process(self,fname):
         self.current_fname = fname
@@ -206,7 +206,7 @@ class DiskState:
                 return str(ptime(fi.mtime()))
             except TypeError:
                 return "n/a"
-        res = [(fidate(fi),str(fi.filesize()),fi.filename()) for fi in fis]
+        res = [(fi.volume.offset,fidate(fi),str(fi.filesize()),fi.filename()) for fi in fis]
         if res:
             table(sorted(res))
 
@@ -216,28 +216,28 @@ class DiskState:
 
         h2(title)
         res = set()
-        for(ofi,fi) in fi2s:
+        for (offset, ofi, fi) in fi2s:
             if ofi.filename() != fi.filename():
-                res.add((ofi.filename(),"renamed to",fi.filename()))
+                res.add(("Partition at %d; " % fi.volume.offset, ofi.filename(),"renamed to",fi.filename()))
                 # Don't know when it was renamed
             if ofi.filesize() != fi.filesize():
-                res.add((ofi.filename(),"resized",ofi.filesize(),"->",fi.filesize()))
-                if self.timeline: self.timeline.add((fi.mtime(),fi.filename(),"resized",ofi.filesize(),"->",fi.filesize()))
+                res.add(("Partition at %d; " % fi.volume.offset, ofi.filename(),"resized",ofi.filesize(),"->",fi.filesize()))
+                if self.timeline: self.timeline.add((fi.mtime(),"Partition at %d; " % fi.volume.offset, fi.filename(),"resized",ofi.filesize(),"->",fi.filesize()))
             if ofi.sha1() != fi.sha1():
-                res.add((ofi.filename(),"SHA1 changed",ofi.sha1(),"->",fi.sha1()))
-                if self.timeline: self.timeline.add((fi.mtime(),fi.filename(),"SHA1 changed",ofi.sha1(),"->",fi.sha1()))
+                res.add(("Partition at %d; " % fi.volume.offset, ofi.filename(),"SHA1 changed",ofi.sha1(),"->",fi.sha1()))
+                if self.timeline: self.timeline.add((fi.mtime(),"Partition at %d; " % fi.volume.offset, fi.filename(),"SHA1 changed",ofi.sha1(),"->",fi.sha1()))
             if ofi.atime() != fi.atime():
-                res.add((ofi.filename(),"atime changed",ptime(ofi.atime()),"->",ptime(fi.atime())))
-                if self.timeline: self.timeline.add((fi.atime(),fi.filename(),"atime changed",prtime(ofi.atime()),"->",prtime(fi.atime())))
+                res.add(("Partition at %d; " % fi.volume.offset, ofi.filename(),"atime changed",ptime(ofi.atime()),"->",ptime(fi.atime())))
+                if self.timeline: self.timeline.add((fi.atime(),"Partition at %d; " % fi.volume.offset, fi.filename(),"atime changed",prtime(ofi.atime()),"->",prtime(fi.atime())))
             if ofi.mtime() != fi.mtime():
-                res.add((ofi.filename(),"mtime changed",ptime(ofi.mtime()),"->",ptime(fi.mtime())))
-                if self.timeline: self.timeline.add((fi.mtime(),fi.filename(),"mtime changed",prtime(ofi.mtime()),"->",prtime(fi.mtime())))
+                res.add(("Partition at %d; " % fi.volume.offset, ofi.filename(),"mtime changed",ptime(ofi.mtime()),"->",ptime(fi.mtime())))
+                if self.timeline: self.timeline.add((fi.mtime(),"Partition at %d; " % fi.volume.offset, fi.filename(),"mtime changed",prtime(ofi.mtime()),"->",prtime(fi.mtime())))
             if ofi.ctime() != fi.ctime():
-                res.add((ofi.filename(),"ctime changed",ptime(ofi.ctime()),"->",ptime(fi.ctime())))
-                if self.timeline: self.timeline.add((fi.ctime(),fi.filename(),"ctime changed",prtime(ofi.ctime()),"->",prtime(fi.ctime())))
+                res.add(("Partition at %d; " % fi.volume.offset, ofi.filename(),"ctime changed",ptime(ofi.ctime()),"->",ptime(fi.ctime())))
+                if self.timeline: self.timeline.add((fi.ctime(),"Partition at %d; " % fi.volume.offset, fi.filename(),"ctime changed",prtime(ofi.ctime()),"->",prtime(fi.ctime())))
             if ofi.crtime() != fi.crtime():
-                res.add((ofi.filename(),"crtime changed",ptime(ofi.crtime()),"->",ptime(fi.crtime())))
-                if self.timeline: self.timeline.add((fi.crtime(),fi.filename(),"crtime changed",prtime(ofi.crtime()),"->",prtime(fi.crtime())))
+                res.add(("Partition at %d; " % fi.volume.offset, ofi.filename(),"crtime changed",ptime(ofi.crtime()),"->",ptime(fi.crtime())))
+                if self.timeline: self.timeline.add((fi.crtime(),"Partition at %d; " % fi.volume.offset, fi.filename(),"crtime changed",prtime(ofi.crtime()),"->",prtime(fi.crtime())))
         if res:
             table(sorted(res),break_on_change=True)
 
@@ -253,7 +253,14 @@ class DiskState:
     def report(self):
         header()
         h1("Disk image:"+self.current_fname)
-        self.print_fis("New Files:",self.new_files)
+
+        #Unzip new_files (that is, convert a set of pairs into a pair of sets)
+        #If unfamiliar with the *-for-args syntax, see:
+        #http://docs.python.org/3/tutorial/controlflow.html#unpacking-argument-lists
+        #via http://stackoverflow.com/a/5917619/1207160
+        new_fi_volumes, new_fis = zip(*self.new_files)
+
+        self.print_fis("New Files:",new_fis)
         self.print_fis("Deleted Files:",self.fnames.values())
         self.print_fi2("Renamed Files:",self.renamed_files)
         self.print_fi2("Files with modified content:",self.changed_content)
