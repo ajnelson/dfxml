@@ -523,6 +523,7 @@ class registry_value_object(registry_cell_object):
 
         self._cell_type = "registry_value_object"
         
+        #TODO Replace to be in line with fileobjects: fileobject.hashdigest is a dictionary
         self._hashcache = dict()
 
         """List for the string-list type of value."""
