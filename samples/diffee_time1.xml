@@ -16,7 +16,7 @@
     <block_size>4096</block_size>
     <ftype_str>FAT32</ftype_str>
     <fileobject>
-      <filename>F_3</filename>
+      <filename>NO_CHANGE</filename>
       <partition>1</partition>
       <filesize>4097</filesize>
       <alloc>1</alloc>
@@ -26,9 +26,8 @@
       <inode>3</inode>
       <hashdigest type='sha1'>3000000000000000000000000000000000000000</hashdigest>
     </fileobject>
-    <!--CHANGE: F_4 erased.-->
     <fileobject>
-      <filename>F_6</filename>
+      <filename>CHANGE___timestamp_changes_format_only</filename>
       <partition>1</partition>
       <filesize>4097</filesize>
       <alloc>1</alloc>
@@ -38,9 +37,8 @@
       <inode>6</inode>
       <hashdigest type='sha1'>6000000000000000000000000000000000000000</hashdigest>
     </fileobject>
-    <!--CHANGE:  F_A erased, replaced with F_B.-->
     <fileobject>
-      <filename>F_A</filename><!--CHANGE: F_B renamed to F_A.  Inode remains the same, checksum does not.-->
+      <filename>CHANGE___erased___replaced_by_sibling</filename><!--CHANGE: Inode remains the same, checksum does not.-->
       <partition>1</partition>
       <filesize>4098</filesize><!--CHANGE: Size increases by 1 byte.-->
       <crtime>2007-08-09T12:34:56Z</crtime>
@@ -49,9 +47,8 @@
       <inode>8</inode>
       <hashdigest type='sha1'>B100000000000000000000000000000000000000</hashdigest><!--CHANGE: Content changes.-->
     </fileobject>
-    <!--CHANGE:  F_C erased, replaced with F_D from partition at 2GiB.-->
     <fileobject>
-      <filename>F_C</filename><!--CHANGE: F_D renamed to F_C.-->
+      <filename>CHANGE___erased___replaced_by_other_partition_file</filename>
       <partition>1</partition>
       <filesize>4097</filesize>
       <crtime>2007-08-09T12:34:56Z</crtime>
@@ -60,13 +57,23 @@
       <inode>10</inode>
       <hashdigest type='sha1'>D000000000000000000000000000000000000000</hashdigest>
     </fileobject>
+    <fileobject>
+      <filename>_CHANGE___renamed</filename>
+      <partition>1</partition>
+      <filesize>4097</filesize>
+      <crtime>2007-08-09T12:34:56Z</crtime>
+      <atime>2007-08-09T12:34:56Z</atime>
+      <mtime>2007-08-09T12:34:56Z</mtime>
+      <inode>9</inode>
+      <hashdigest type='sha1'>E000000000000000000000000000000000000000</hashdigest>
+    </fileobject>
   </volume>
   <volume offset="2147483648"><!--2GiB-->
     <partition_offset>2147483648</partition_offset>
     <block_size>4096</block_size>
     <ftype_str>NTFS</ftype_str><!--CHANGE: File system changes from FAT32 to NTFS-->
     <fileobject><!--CHANGE: Moved from partition at 1GiB.-->
-      <filename>F_5</filename>
+      <filename>CHANGE___move_from_P1G_to_P2G</filename>
       <partition>2</partition>
       <filesize>4097</filesize>
       <alloc>1</alloc>
@@ -77,7 +84,7 @@
       <hashdigest type='sha1'>5000000000000000000000000000000000000000</hashdigest>
     </fileobject>
     <fileobject>
-      <filename>F_7</filename>
+      <filename>CHANGE___content_and_mtime</filename>
       <partition>2</partition>
       <filesize>4097</filesize>
       <alloc>1</alloc>
@@ -88,7 +95,7 @@
       <hashdigest type='sha1'>7100000000000000000000000000000000000000</hashdigest>
     </fileobject>
     <fileobject>
-      <filename>F_8</filename>
+      <filename>CHANGE___unallocated</filename>
       <partition>2</partition>
       <filesize>4097</filesize>
       <alloc>0</alloc>
@@ -99,7 +106,7 @@
       <hashdigest type='sha1'>8000000000000000000000000000000000000000</hashdigest>
     </fileobject>
     <fileobject>
-      <filename>F_9</filename>
+      <filename>CHANGE___new_file</filename>
       <partition>2</partition>
       <filesize>4097</filesize>
       <alloc>1</alloc>
@@ -109,15 +116,14 @@
       <inode>6</inode>
       <hashdigest type='sha1'>9100000000000000000000000000000000000000</hashdigest>
     </fileobject>
-    <!--CHANGE:  F_D moved to partition at 1GiB.-->
   </volume>
   <!--CHANGE: Partition added-->
-  <volume offset="4294967296"><!--4GiB-->
+  <volume offset="3221225472"><!--3GiB-->
     <partition_offset>4294967296</partition_offset>
     <block_size>4096</block_size>
     <ftype_str>FAT32</ftype_str>
-    <fileobject><!--CHANGE: Moved from partition at 1MiB-->
-      <filename>F_0</filename>
+    <fileobject>
+      <filename>CHANGE___move_from_P1M_to_P3G</filename>
       <partition>3</partition>
       <filesize>4097</filesize>
       <alloc>1</alloc>
@@ -127,19 +133,19 @@
       <inode>3</inode>
       <hashdigest type='sha1'>0000000000000000000000000000000000000000</hashdigest>
     </fileobject>
-    <fileobject><!--CHANGE: Moved from partition at 1MiB-->
-      <filename>F_2</filename>
+    <fileobject>
+      <filename>CHANGE___move_from_P1M_to_P3G___change_content___change_mtime</filename>
       <partition>3</partition>
       <filesize>4097</filesize>
       <alloc>1</alloc>
       <crtime>2007-08-09T12:34:56Z</crtime>
       <atime>2007-08-09T12:34:56Z</atime>
-      <mtime>2007-08-09T12:34:57Z</mtime><!--CHANGE: Mtime changes-->
+      <mtime>2007-08-09T12:34:57Z</mtime>
       <inode>4</inode><!--IRRELEVANT CHANGE: inode number changed from @1MiB's inode number-->
-      <hashdigest type='sha1'>2100000000000000000000000000000000000000</hashdigest><!--CHANGE: Content changes-->
+      <hashdigest type='sha1'>2100000000000000000000000000000000000000</hashdigest>
     </fileobject>
-    <fileobject><!--CHANGE: Moved from partition at 1MiB-->
-      <filename>_F_1</filename><!--CHANGE: Name changes from "F_1" to "_F_1", affecting directory order-->
+    <fileobject>
+      <filename>_CHANGE___move_from_P1M_to_P3G___change_name</filename>
       <partition>3</partition>
       <filesize>4097</filesize>
       <alloc>1</alloc>
