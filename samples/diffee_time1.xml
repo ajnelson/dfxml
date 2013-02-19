@@ -38,6 +38,28 @@
       <inode>6</inode>
       <hashdigest type='sha1'>6000000000000000000000000000000000000000</hashdigest>
     </fileobject>
+    <!--CHANGE:  F_A erased, replaced with F_B.-->
+    <fileobject>
+      <filename>F_A</filename><!--CHANGE: F_B renamed to F_A.  Inode remains the same, checksum does not.-->
+      <partition>1</partition>
+      <filesize>4098</filesize><!--CHANGE: Size increases by 1 byte.-->
+      <crtime>2007-08-09T12:34:56Z</crtime>
+      <atime>2007-08-09T12:34:56Z</atime>
+      <mtime>2007-08-09T12:34:56Z</mtime>
+      <inode>8</inode>
+      <hashdigest type='sha1'>B100000000000000000000000000000000000000</hashdigest><!--CHANGE: Content changes.-->
+    </fileobject>
+    <!--CHANGE:  F_C erased, replaced with F_D from partition at 2GiB.-->
+    <fileobject>
+      <filename>F_C</filename><!--CHANGE: F_D renamed to F_C.-->
+      <partition>1</partition>
+      <filesize>4097</filesize>
+      <crtime>2007-08-09T12:34:56Z</crtime>
+      <atime>2007-08-09T12:34:56Z</atime>
+      <mtime>2007-08-09T12:35:00Z</mtime><!--CHANGE: mtime upated.-->
+      <inode>10</inode>
+      <hashdigest type='sha1'>D000000000000000000000000000000000000000</hashdigest>
+    </fileobject>
   </volume>
   <volume offset="2147483648"><!--2GiB-->
     <partition_offset>2147483648</partition_offset>
@@ -87,6 +109,7 @@
       <inode>6</inode>
       <hashdigest type='sha1'>9100000000000000000000000000000000000000</hashdigest>
     </fileobject>
+    <!--CHANGE:  F_D moved to partition at 1GiB.-->
   </volume>
   <!--CHANGE: Partition added-->
   <volume offset="4294967296"><!--4GiB-->

@@ -89,6 +89,36 @@
       <inode>6</inode>
       <hashdigest type='sha1'>6000000000000000000000000000000000000000</hashdigest>
     </fileobject>
+    <fileobject>
+      <filename>F_A</filename>
+      <partition>2</partition>
+      <filesize>4097</filesize>
+      <crtime>2007-08-09T12:34:56Z</crtime>
+      <atime>2007-08-09T12:34:56Z</atime>
+      <mtime>2007-08-09T12:34:56Z</mtime>
+      <inode>7</inode>
+      <hashdigest type='sha1'>A000000000000000000000000000000000000000</hashdigest>
+    </fileobject>
+    <fileobject>
+      <filename>F_B</filename>
+      <partition>2</partition>
+      <filesize>4097</filesize>
+      <crtime>2007-08-09T12:34:56Z</crtime>
+      <atime>2007-08-09T12:34:56Z</atime>
+      <mtime>2007-08-09T12:34:56Z</mtime>
+      <inode>8</inode>
+      <hashdigest type='sha1'>B000000000000000000000000000000000000000</hashdigest>
+    </fileobject>
+    <fileobject>
+      <filename>F_C</filename>
+      <partition>2</partition>
+      <filesize>4097</filesize>
+      <crtime>2007-08-09T12:34:56Z</crtime>
+      <atime>2007-08-09T12:34:56Z</atime>
+      <mtime>2007-08-09T12:34:56Z</mtime>
+      <inode>9</inode>
+      <hashdigest type='sha1'>C000000000000000000000000000000000000000</hashdigest>
+    </fileobject>
   </volume>
   <volume offset="2147483648"><!--2GiB-->
     <partition_offset>2147483648</partition_offset>
@@ -113,6 +143,16 @@
       <mtime>2007-08-09T12:34:56Z</mtime>
       <inode>4</inode>
       <hashdigest type='sha1'>8000000000000000000000000000000000000000</hashdigest>
+    </fileobject>
+    <fileobject>
+      <filename>F_D</filename>
+      <partition>3</partition>
+      <filesize>4097</filesize>
+      <crtime>2007-08-09T12:34:56Z</crtime>
+      <atime>2007-08-09T12:34:56Z</atime>
+      <mtime>2007-08-09T12:34:56Z</mtime>
+      <inode>5</inode>
+      <hashdigest type='sha1'>D000000000000000000000000000000000000000</hashdigest>
     </fileobject>
   </volume>
 </dfxml>
