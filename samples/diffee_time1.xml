@@ -17,6 +17,7 @@
     <ftype_str>FAT32</ftype_str>
     <fileobject>
       <filename>F_3</filename>
+      <partition>1</partition>
       <filesize>4097</filesize>
       <alloc>1</alloc>
       <crtime>2007-08-09T12:34:56Z</crtime>
@@ -28,11 +29,12 @@
     <!--CHANGE: F_4 erased.-->
     <fileobject>
       <filename>F_6</filename>
+      <partition>1</partition>
       <filesize>4097</filesize>
       <alloc>1</alloc>
       <crtime>2007-08-09T12:34:56Z</crtime>
       <atime>2007-08-09T12:34:56Z</atime>
-      <mtime>2007-08-09T04:34:56-0800</mtime><!--SEMI-RELEVANT CHANGE: Timestamp format, but not semantic value.-->
+      <mtime>2007-08-09T05:34:56-0700</mtime><!--SEMI-RELEVANT CHANGE: Timestamp format, but not semantic value.-->
       <inode>6</inode>
       <hashdigest type='sha1'>6000000000000000000000000000000000000000</hashdigest>
     </fileobject>
@@ -43,6 +45,7 @@
     <ftype_str>NTFS</ftype_str><!--CHANGE: File system changes from FAT32 to NTFS-->
     <fileobject><!--CHANGE: Moved from partition at 1GiB.-->
       <filename>F_5</filename>
+      <partition>2</partition>
       <filesize>4097</filesize>
       <alloc>1</alloc>
       <crtime>2007-08-09T12:34:56Z</crtime>
@@ -53,6 +56,7 @@
     </fileobject>
     <fileobject>
       <filename>F_7</filename>
+      <partition>2</partition>
       <filesize>4097</filesize>
       <alloc>1</alloc>
       <crtime>2007-08-09T12:34:56Z</crtime>
@@ -63,6 +67,7 @@
     </fileobject>
     <fileobject>
       <filename>F_8</filename>
+      <partition>2</partition>
       <filesize>4097</filesize>
       <alloc>0</alloc>
       <crtime>2007-08-09T12:34:56Z</crtime>
@@ -73,6 +78,7 @@
     </fileobject>
     <fileobject>
       <filename>F_9</filename>
+      <partition>2</partition>
       <filesize>4097</filesize>
       <alloc>1</alloc>
       <crtime>2007-08-09T12:34:59Z</crtime>
@@ -89,6 +95,7 @@
     <ftype_str>FAT32</ftype_str>
     <fileobject><!--CHANGE: Moved from partition at 1MiB-->
       <filename>F_0</filename>
+      <partition>3</partition>
       <filesize>4097</filesize>
       <alloc>1</alloc>
       <crtime>2007-08-09T12:34:56Z</crtime>
@@ -99,6 +106,7 @@
     </fileobject>
     <fileobject><!--CHANGE: Moved from partition at 1MiB-->
       <filename>F_2</filename>
+      <partition>3</partition>
       <filesize>4097</filesize>
       <alloc>1</alloc>
       <crtime>2007-08-09T12:34:56Z</crtime>
@@ -109,6 +117,7 @@
     </fileobject>
     <fileobject><!--CHANGE: Moved from partition at 1MiB-->
       <filename>_F_1</filename><!--CHANGE: Name changes from "F_1" to "_F_1", affecting directory order-->
+      <partition>3</partition>
       <filesize>4097</filesize>
       <alloc>1</alloc>
       <crtime>2007-08-09T12:34:56Z</crtime>

@@ -16,6 +16,7 @@
     <ftype_str>FAT16</ftype_str>
     <fileobject>
       <filename>F_0</filename>
+      <partition>1</partition>
       <filesize>4097</filesize>
       <crtime>2007-08-09T12:34:56Z</crtime>
       <atime>2007-08-09T12:34:56Z</atime>
@@ -25,6 +26,7 @@
     </fileobject>
     <fileobject>
       <filename>F_1</filename>
+      <partition>1</partition>
       <filesize>4097</filesize>
       <crtime>2007-08-09T12:34:56Z</crtime>
       <atime>2007-08-09T12:34:56Z</atime>
@@ -34,6 +36,7 @@
     </fileobject>
     <fileobject>
       <filename>F_2</filename>
+      <partition>1</partition>
       <filesize>4097</filesize>
       <crtime>2007-08-09T12:34:56Z</crtime>
       <atime>2007-08-09T12:34:56Z</atime>
@@ -48,6 +51,7 @@
     <ftype_str>FAT32</ftype_str>
     <fileobject>
       <filename>F_3</filename>
+      <partition>2</partition>
       <filesize>4097</filesize>
       <crtime>2007-08-09T12:34:56Z</crtime>
       <atime>2007-08-09T12:34:56Z</atime>
@@ -57,6 +61,7 @@
     </fileobject>
     <fileobject>
       <filename>F_4</filename>
+      <partition>2</partition>
       <filesize>4097</filesize>
       <crtime>2007-08-09T12:34:56Z</crtime>
       <atime>2007-08-09T12:34:56Z</atime>
@@ -66,6 +71,7 @@
     </fileobject>
     <fileobject>
       <filename>F_5</filename>
+      <partition>2</partition>
       <filesize>4097</filesize>
       <crtime>2007-08-09T12:34:56Z</crtime>
       <atime>2007-08-09T12:34:56Z</atime>
@@ -75,6 +81,7 @@
     </fileobject>
     <fileobject>
       <filename>F_6</filename>
+      <partition>2</partition>
       <filesize>4097</filesize>
       <crtime>2007-08-09T12:34:56Z</crtime>
       <atime>2007-08-09T12:34:56Z</atime>
@@ -89,6 +96,7 @@
     <ftype_str>FAT32</ftype_str>
     <fileobject>
       <filename>F_7</filename>
+      <partition>3</partition>
       <filesize>4097</filesize>
       <crtime>2007-08-09T12:34:56Z</crtime>
       <atime>2007-08-09T12:34:56Z</atime>
@@ -98,6 +106,7 @@
     </fileobject>
     <fileobject>
       <filename>F_8</filename>
+      <partition>3</partition>
       <filesize>4097</filesize>
       <crtime>2007-08-09T12:34:56Z</crtime>
       <atime>2007-08-09T12:34:56Z</atime>
