@@ -115,6 +115,7 @@ class DiskState:
     global options
 
     def __init__(self,notimeline=False,summary=False,include_dotdirs=False):
+        self.new_volumes = dict() # maps from (volume offset) -> volume object
         self.new_fnames = dict() # maps from (volume offset, fname) -> fi
         self.new_inodes = dict() # maps from (volume offset, inode_number) -> fi
         self.new_fi_tally = 0
@@ -126,13 +127,16 @@ class DiskState:
     def next(self):
         """Called when the next image is processed."""
         global options
+        self.volumes = self.new_volumes
         self.fnames = self.new_fnames
         self.inodes = self.new_inodes
         self.fi_tally = self.new_fi_tally
+        self.new_volumes = dict()
         self.new_fnames = dict()
         self.new_inodes = dict()
         self.new_files          = set()     # set of file objects, as (volume offset, fi)
         self.renamed_files      = set()     # set of (volume offset,oldfile,newfile) file object pairs
+        self.changed_volumes    = set()     # set of (oldvolume,newvolume) object pairs
         self.changed_content    = set()     # set of (volume offset,oldfile,newfile) file object pairs
         self.changed_properties = set()     # set of (volume offset,oldfile,newfile) file object pairs
         if self.notimeline:
@@ -153,10 +157,28 @@ class DiskState:
         if ignore_filename(fi.filename(), self.include_dotdirs):
             return 
 
+        # Remember the volume for the next generation
+        if fi.volume.offset not in self.new_volumes:
+            self.new_volumes[fi.volume.offset] = fi.volume
+
         # Remember the file for the next generation
         self.new_fnames[(fi.volume.offset, fi.filename())] = fi
         self.new_inodes[(fi.volume.offset, fi.inode())] = fi
         self.new_fi_tally += 1
+
+        # See if this volume changed its type or dimensions
+        ovo = self.volumes.get(fi.volume.offset)
+        if ovo:
+            dprint("   found old volume object")
+            dprint(str(ovo))
+            dprint("   %d %s" %( ovo.offset, ovo.ftype_str()))
+            if ovo.ftype_str() != fi.volume.ftype_str() or \
+               ovo.block_count() != fi.volume.block_count() or \
+               ovo.first_block() != fi.volume.first_block() or \
+               ovo.last_block() != fi.volume.last_block():
+                self.changed_volumes.add((ovo, fi.volume))
+        else:
+            self.new_volumes[fi.volume.offset] = fi.volume
 
         # See if this filename changed or was resized
         ofi = self.fnames.get((fi.volume.offset, fi.filename()),None)
@@ -181,6 +203,10 @@ class DiskState:
                 if not create_time: create_time = fi.mtime()
                 self.timeline.add((create_time,fi.filename(),"created"))
 
+        # Delete volumes we have seen
+        if fi.volume.offset in self.volumes:
+            del self.volumes[fi.volume.offset]
+
         # Delete files we have seen (so we can find out the files that were deleted)
         if (fi.volume.offset, fi.filename()) in self.fnames:
             del self.fnames[(fi.volume.offset, fi.filename())]
@@ -199,6 +225,12 @@ class DiskState:
         else:
             fiwalk.fiwalk_using_sax(imagefile=open(infile,'rb'), flags=fiwalk.ALLOC_ONLY, callback=self.process_fi)
 
+    def print_vols(self,title,vols):
+        h2(title)
+        res = [(vol.offset, vol.ftype_str()) for vol in vols]
+        if res:
+            table(sorted(res))
+
     def print_fis(self,title,fis):
         h2(title)
         def fidate(fi):
@@ -209,6 +241,24 @@ class DiskState:
         res = [(fi.volume.offset,fidate(fi),str(fi.filesize()),fi.filename()) for fi in fis]
         if res:
             table(sorted(res))
+
+    def print_vol2(self,title,vo2s):
+        h2(title)
+        res = set()
+        for (ovo,vo) in vo2s:
+            if ovo.ftype() != vo.ftype():
+                pass
+            if ovo.ftype_str() != vo.ftype_str():
+                res.add(("Partition at %d; " % vo.offset, "File system", ovo.ftype_str(),"changed to",vo.ftype_str()))
+            if ovo.block_count() != vo.block_count():
+                pass
+            if ovo.first_block() != vo.first_block():
+                pass
+            if ovo.last_block() != vo.last_block():
+                pass
+
+        if res:
+            table(sorted(res),break_on_change=True)
 
     def print_fi2(self,title,fi2s):
         def prtime(t):
@@ -262,6 +312,9 @@ class DiskState:
         if len(self.new_files) > 0:
             new_fi_volumes, new_fis = zip(*self.new_files)
 
+        self.print_vols("New Volumes:",self.new_volumes.values())
+        self.print_vols("Deleted Volumes:",self.volumes.values())
+        self.print_vol2("Changed Volumes:",self.changed_volumes)
         self.print_fis("New Files:",new_fis)
         self.print_fis("Deleted Files:",self.fnames.values())
         self.print_fi2("Renamed Files:",self.renamed_files)
