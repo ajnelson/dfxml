@@ -24,6 +24,7 @@ def ignore_filename(fn, include_dotdirs=False):
     and renamed files becomes difficult if there are 3+ names for an
     inode (i.e. "dir", "dir/.", and "dir/child/..").
     """
+    if fn is None: return True
     return (not include_dotdirs and (fn.endswith("/.") or fn.endswith("/.."))) or fn in set(['$FAT1','$FAT2'])    
 
 def ptime(t):
