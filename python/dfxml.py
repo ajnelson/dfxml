@@ -1156,6 +1156,13 @@ class fileobject_reader(xml_reader):
                 self.volumeobject.block_size = int(self.cdata)
                 self.cdata=None
             return
+        if name in ["partition_offset", "ftype", "ftype_str"] and len(self.tagstack) > 1 :
+            if self.tagstack[-1] == "volume" : 
+                self.volumeobject._tags[name] = self.cdata
+                self.cdata = None
+            else:
+                sys.stderr.write("Warning: XPAT scanner encountered a volume XML element, outside the context of a volume object: %s\n" % name)
+            return
         if name=="fileobject":
             self.callback(self.fileobject)
             self.fileobject = None
