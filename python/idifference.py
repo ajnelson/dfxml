@@ -68,9 +68,18 @@ def h2(title):
     print("\n\n%s\n%s" % (title,"="*len(title)))
 
 
-def table(rows,styles=None,break_on_change=False):
+def table(rows,header=None,styles=None,break_on_change=False,changechar=None):
+    """
+    Parameters:
+        changechar: Expected to be one of {+,-,r,~} to denote additions, deletions, renames, or metadata changes.
+    """
     import sys
     global options
+
+    #Assert that the number of column headers matches the number of columns
+    if header and len(rows)>0:
+        assert len(rows[0]) == len(header)
+
     def alldigits(x):
         if type(x)!=str: return False
         for ch in x:
@@ -85,22 +94,50 @@ def table(rows,styles=None,break_on_change=False):
             
     if options.html:
         print("<table>")
+        if header:
+            print("<thead>")
+            print("<tr>")
+            if changechar:
+                print("<th>+/-/r/~</th>")
+            for colheader in header:
+                print("<th>%s</th>" % colheader)
+            print("</tr>")
+            print("</thead>")
+        print("<tbody>")
         for row in rows:
             print("<tr>")
             if not styles:
                 styles = [""]*len(rows)
+            if changechar:
+                sys.stdout.write("<td>%s</td>" % changechar)
             for (col,style) in zip(row,styles):
                 sys.stdout.write("<td class='%s'>%s</td>" % (style,col))
             print("<tr>")
+        print("</tbody>")
         print("</table>")
         return
     lastRowCol0 = None
+    #Write the header
+    if header:
+        writingheader = []
+        if changechar:
+            writingheader.append("+/-/r/~")
+        sys.stdout.write("\t".join([fmt(col) for colheader in writingheader]))
+        sys.stdout.write("\n")
+        for (colheaderno, colheader) in enumerate(writingheader):
+            if colheaderno > 0:
+                sys.stdout.write("\t")
+            sys.stdout.write("_" * len(colheader))
+        sys.stdout.write("\n")
     for row in rows:
+        #AJN TODO See what putting partition at front does
         # Insert a blank line if this row[0] is not the same as last row[0]
         if row[0]!=lastRowCol0 and break_on_change:
             sys.stdout.write("\n")
             lastRowCol0 = row[0]
         # Write the row.
+        if changechar:
+            sys.stdout.write("%s\t" % changechar)
         # This won't generate a unicode encoding error because the strings are valid unicode.
         sys.stdout.write("\t".join([fmt(col) for col in row]))
         sys.stdout.write("\n")
