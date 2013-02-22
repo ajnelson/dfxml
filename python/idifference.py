@@ -167,20 +167,6 @@ class DiskState:
         self.new_inodes[(fi.volume.offset, fi.inode())] = fi
         self.new_fi_tally += 1
 
-        # See if this volume changed its type or dimensions
-        ovo = self.volumes.get(fi.volume.offset)
-        if ovo:
-            dprint("   found old volume object")
-            dprint(str(ovo))
-            dprint("   %d %s" %( ovo.offset, ovo.ftype_str()))
-            if ovo.ftype_str() != fi.volume.ftype_str() or \
-               ovo.block_count() != fi.volume.block_count() or \
-               ovo.first_block() != fi.volume.first_block() or \
-               ovo.last_block() != fi.volume.last_block():
-                self.changed_volumes.add((ovo, fi.volume))
-        else:
-            self.new_volumes[fi.volume.offset] = fi.volume
-
         # See if this filename changed or was resized
         ofi = self.fnames.get((fi.volume.offset, fi.filename()),None)
         if ofi:
@@ -204,10 +190,6 @@ class DiskState:
                 if not create_time: create_time = fi.mtime()
                 self.timeline.add((create_time,fi.filename(),"created"))
 
-        # Delete volumes we have seen
-        if fi.volume.offset in self.volumes:
-            del self.volumes[fi.volume.offset]
-
         # Delete files we have seen (so we can find out the files that were deleted)
         if (fi.volume.offset, fi.filename()) in self.fnames:
             del self.fnames[(fi.volume.offset, fi.filename())]
@@ -225,6 +207,25 @@ class DiskState:
             fiwalk.fiwalk_using_sax(xmlfile=open(infile,'rb'), flags=fiwalk.ALLOC_ONLY, callback=self.process_fi)
         else:
             fiwalk.fiwalk_using_sax(imagefile=open(infile,'rb'), flags=fiwalk.ALLOC_ONLY, callback=self.process_fi)
+
+        #Determine volume changes after files are processed
+        for nvo in self.new_volumes.values():
+            # See if this volume changed its type or dimensions
+            ovo = self.volumes.get(nvo.offset)
+            if ovo:
+                dprint("   found old volume object")
+                dprint(str(ovo))
+                dprint("   %d %s" %( ovo.offset, ovo.ftype_str()))
+                if ovo.ftype_str() != nvo.ftype_str() or \
+                   ovo.block_count() != nvo.block_count() or \
+                   ovo.first_block() != nvo.first_block() or \
+                   ovo.last_block() != nvo.last_block():
+                    self.changed_volumes.add((ovo, nvo))
+
+            # Delete volumes we have seen
+            if nvo.offset in self.volumes:
+                del self.volumes[nvo.offset]
+
 
     def print_vols(self,title,vols):
         h2(title)
