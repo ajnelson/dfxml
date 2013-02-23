@@ -340,6 +340,7 @@ class DiskState:
         table(prt)
 
     def report(self):
+        global options
         header()
         h1("Disk image:"+self.current_fname)
 
@@ -351,14 +352,16 @@ class DiskState:
         if len(self.new_files) > 0:
             new_fi_volumes, new_fis = zip(*self.new_files)
 
-        self.print_vols("New Volumes:",self.new_volumes.values(), "+")
-        self.print_vols("Deleted Volumes:",self.volumes.values(), "-")
-        self.print_vol2("Changed Volumes:",self.changed_volumes, "~")
-        self.print_fis("New Files:",new_fis, "+")
-        self.print_fis("Deleted Files:",self.fnames.values(), "-")
-        self.print_fi2("Renamed Files:",self.renamed_files, "r")
-        self.print_fi2("Files with modified content:",self.changed_content, "~")
-        self.print_fi2("Files with changed file properties:",self.changed_properties, "~")
+        ac = options.annotate_with_char
+
+        self.print_vols("New Volumes:",self.new_volumes.values(), "+" if ac else None)
+        self.print_vols("Deleted Volumes:",self.volumes.values(), "-" if ac else None)
+        self.print_vol2("Changed Volumes:",self.changed_volumes, "~" if ac else None)
+        self.print_fis("New Files:",new_fis, "+" if ac else None)
+        self.print_fis("Deleted Files:",self.fnames.values(), "-" if ac else None)
+        self.print_fi2("Renamed Files:",self.renamed_files, "r" if ac else None)
+        self.print_fi2("Files with modified content:",self.changed_content, "~" if ac else None)
+        self.print_fi2("Files with changed file properties:",self.changed_properties, "~" if ac else None)
         if self.summary:
             h2("Summary:")
             table([
@@ -465,6 +468,7 @@ if __name__=="__main__":
     parser.add_option("-d","--debug",help="debug",action='store_true')
     parser.add_option("-T","--tararchive",help="create tar archive file of new/changed files",dest="tarfile")
     parser.add_option("-Z","--zipfile",help="create ZIP64 archive file of new/changed files",dest="zipfile")
+    parser.add_option("--annotate-with-char",help="prefix each row with a change-type character (+: new, -: deleted, r: renamed, ~: changed)",action="store_true",dest="annotate_with_char")
     parser.add_option("--include-dotdirs",help="include files with names ending in '/.' and '/..'",action="store_true", dest="include_dotdirs", default=False)
     parser.add_option("--summary",help="output summary statistics of file system changes",action="store_true", default=False)
     parser.add_option("--timestamp",help="output all times in Unix timestamp format; otherwise use ISO 8601",action="store_true")
