@@ -264,13 +264,13 @@ class DiskState:
                 del self.volumes[nvo.offset]
 
 
-    def print_vols(self,title,vols):
+    def print_vols(self,title,vols, changechar=None):
         h2(title)
         res = [(vol.offset, vol.ftype_str()) for vol in vols]
         if res:
-            table(sorted(res))
+            table(sorted(res), changechar=changechar)
 
-    def print_fis(self,title,fis):
+    def print_fis(self,title,fis, changechar=None):
         h2(title)
         def fidate(fi):
             try:
@@ -279,9 +279,9 @@ class DiskState:
                 return "n/a"
         res = [(fi.volume.offset,fidate(fi),str(fi.filesize()),fi.filename()) for fi in fis]
         if res:
-            table(sorted(res))
+            table(sorted(res), changechar=changechar)
 
-    def print_vol2(self,title,vo2s):
+    def print_vol2(self,title,vo2s, changechar=None):
         h2(title)
         res = set()
         for (ovo,vo) in vo2s:
@@ -297,9 +297,9 @@ class DiskState:
                 pass
 
         if res:
-            table(sorted(res),break_on_change=True)
+            table(sorted(res),break_on_change=True, changechar=changechar)
 
-    def print_fi2(self,title,fi2s):
+    def print_fi2(self,title,fi2s, changechar=None):
         def prtime(t):
             return "%d (%s)" % (t,ptime(t))
 
@@ -328,7 +328,7 @@ class DiskState:
                 res.add(("Partition at %d; " % fi.volume.offset, ofi.filename(),"crtime changed",ptime(ofi.crtime()),"->",ptime(fi.crtime())))
                 if self.timeline: self.timeline.add((fi.crtime(),"Partition at %d; " % fi.volume.offset, fi.filename(),"crtime changed",prtime(ofi.crtime()),"->",prtime(fi.crtime())))
         if res:
-            table(sorted(res),break_on_change=True)
+            table(sorted(res),break_on_change=True, changechar=changechar)
 
     def print_timeline(self):
         prt = []
@@ -351,14 +351,14 @@ class DiskState:
         if len(self.new_files) > 0:
             new_fi_volumes, new_fis = zip(*self.new_files)
 
-        self.print_vols("New Volumes:",self.new_volumes.values())
-        self.print_vols("Deleted Volumes:",self.volumes.values())
-        self.print_vol2("Changed Volumes:",self.changed_volumes)
-        self.print_fis("New Files:",new_fis)
-        self.print_fis("Deleted Files:",self.fnames.values())
-        self.print_fi2("Renamed Files:",self.renamed_files)
-        self.print_fi2("Files with modified content:",self.changed_content)
-        self.print_fi2("Files with changed file properties:",self.changed_properties)
+        self.print_vols("New Volumes:",self.new_volumes.values(), "+")
+        self.print_vols("Deleted Volumes:",self.volumes.values(), "-")
+        self.print_vol2("Changed Volumes:",self.changed_volumes, "~")
+        self.print_fis("New Files:",new_fis, "+")
+        self.print_fis("Deleted Files:",self.fnames.values(), "-")
+        self.print_fi2("Renamed Files:",self.renamed_files, "r")
+        self.print_fi2("Files with modified content:",self.changed_content, "~")
+        self.print_fi2("Files with changed file properties:",self.changed_properties, "~")
         if self.summary:
             h2("Summary:")
             table([
