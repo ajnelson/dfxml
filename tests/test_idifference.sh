@@ -14,7 +14,7 @@ IDIFFERENCE_SCRIPT=${TESTSCRIPTDIR}/../python/idifference.py
 IDIFFERENCE_OUTPUT=${TESTSCRIPTDIR}/tmp.txt
 SAMPLE_DIR=${TESTSCRIPTDIR}/../samples
 
-python3 ${IDIFFERENCE_SCRIPT} ${SAMPLE_DIR}/diffee_time0.xml ${SAMPLE_DIR}/diffee_time1.xml >${IDIFFERENCE_OUTPUT}
+python3 ${IDIFFERENCE_SCRIPT} --annotate-with-char ${SAMPLE_DIR}/diffee_time0.xml ${SAMPLE_DIR}/diffee_time1.xml >${IDIFFERENCE_OUTPUT}
 
 #Test that a regular expression ($1) occurs exactly n ($2) times
 assert_equal() {
