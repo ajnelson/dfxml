@@ -18,6 +18,9 @@ import sys,fiwalk,dfxml,time
 if sys.version_info < (3,1):
     raise RuntimeError("idifference.py now requires Python 3.1 or above")
 
+#Global variable, to be adjusted later
+options = None
+
 def ignore_filename(fn, include_dotdirs=False):
     """
     Ignores particular file name patterns output by TSK.  Detecting new
@@ -32,17 +35,18 @@ def ptime(t):
     global options
     if t is None:
         return "null"
-    if options.timestamp:
+    if options and options.timestamp:
         return str(t.timestamp())
     else:
         return str(t.iso8601())
 
 def dprint(x):
     global options
-    if options.debug: print(x)
+    if options and options.debug: print(x)
 
 def header():
-    if options.html:
+    global options
+    if options and options.html:
         print("""<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN http://www.w3.org/TR/html4/loose.dtd">
 <html>
 <body>
@@ -55,14 +59,14 @@ body  { font-family: Sans-serif;}
 
 def h1(title):
     global options
-    if options.html:
+    if options and options.html:
         print("<h1>%s</h1>" % title)
         return
     print("\n\n%s\n" % title)
 
 def h2(title):
     global options
-    if options.html:
+    if options and options.html:
         print("<h2>%s</h2>" % title)
         return
     print("\n\n%s\n%s" % (title,"="*len(title)))
@@ -92,7 +96,7 @@ def table(rows,header=None,styles=None,break_on_change=False,changechar=None):
             return "{0:>12}".format(x)
         return str(x)
             
-    if options.html:
+    if options and options.html:
         print("<table>")
         if header:
             print("<thead>")
@@ -352,7 +356,7 @@ class DiskState:
         if len(self.new_files) > 0:
             new_fi_volumes, new_fis = zip(*self.new_files)
 
-        ac = options.annotate_with_char
+        ac = (options and options.annotate_with_char) or False
 
         self.print_vols("New Volumes:",self.new_volumes.values(), "+" if ac else None)
         self.print_vols("Deleted Volumes:",self.volumes.values(), "-" if ac else None)
