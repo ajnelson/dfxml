@@ -241,9 +241,9 @@ class DiskState:
     def process(self,fname):
         self.current_fname = fname
         if fname.endswith("xml"):
-            fiwalk.fiwalk_using_sax(xmlfile=open(infile,'rb'), flags=fiwalk.ALLOC_ONLY, callback=self.process_fi)
+            fiwalk.fiwalk_using_sax(xmlfile=open(fname,'rb'), flags=fiwalk.ALLOC_ONLY, callback=self.process_fi)
         else:
-            fiwalk.fiwalk_using_sax(imagefile=open(infile,'rb'), flags=fiwalk.ALLOC_ONLY, callback=self.process_fi)
+            fiwalk.fiwalk_using_sax(imagefile=open(fname,'rb'), flags=fiwalk.ALLOC_ONLY, callback=self.process_fi)
 
         #Determine volume changes after files are processed
         for nvo in self.new_volumes.values():
