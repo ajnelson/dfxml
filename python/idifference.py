@@ -170,6 +170,7 @@ class DiskState:
         self.changed_crtime_tally = 0
         self.changed_sha1_tally = 0
         self.changed_filesize_tally = 0
+        self.changed_first_byterun_tally = 0
         self.next()
         
     def next(self):
@@ -197,6 +198,7 @@ class DiskState:
         self.changed_crtime_tally = 0
         self.changed_sha1_tally = 0
         self.changed_filesize_tally = 0
+        self.changed_first_byterun_tally = 0
 
     def process_fi(self,fi):
         global options
@@ -251,6 +253,20 @@ class DiskState:
                     self.changed_ctime_tally += 1
                 if ofi.crtime() != fi.crtime():
                     self.changed_crtime_tally += 1
+                if ofi.byte_runs() and fi.byte_runs():
+                    brdiff = 0
+                    ofirstbr = ofi.byte_runs()[0]
+                    nfirstbr =  fi.byte_runs()[0]
+                    try:
+                        if ofirstbr.file_offset == nfirstbr.file_offset:
+                            brdiff = 1
+                        if ofirstbr.img_offset == nfirstbr.img_offset:
+                            brdiff = 1
+                        if ofirstbr.fs_offset == nfirstbr.fs_offset:
+                            brdiff = 1
+                    except:
+                        pass
+                    self.changed_first_byterun_tally += brdiff
           
 
         # If a new file, note that (and optionally add to the timeline)
