@@ -168,7 +168,8 @@ class DiskState:
         self.changed_atime_tally = 0
         self.changed_ctime_tally = 0
         self.changed_crtime_tally = 0
-        self.changed_sha1_tally = 0
+        self.changed_dir_sha1_tally = 0
+        self.changed_file_sha1_tally = 0
         self.changed_filesize_tally = 0
         self.changed_first_byterun_tally = 0
         self.next()
@@ -196,7 +197,8 @@ class DiskState:
         self.changed_atime_tally = 0
         self.changed_ctime_tally = 0
         self.changed_crtime_tally = 0
-        self.changed_sha1_tally = 0
+        self.changed_dir_sha1_tally = 0
+        self.changed_file_sha1_tally = 0
         self.changed_filesize_tally = 0
         self.changed_first_byterun_tally = 0
 
@@ -244,7 +246,10 @@ class DiskState:
                 if ofi.filesize() != fi.filesize():
                     self.changed_filesize_tally += 1
                 if ofi.sha1() != fi.sha1():
-                    self.changed_sha1_tally += 1
+                    if ofi.is_dir():
+                        self.changed_dir_sha1_tally += 1
+                    elif ofi.is_file():
+                        self.changed_file_sha1_tally += 1
                 if ofi.mtime() != fi.mtime():
                     self.changed_mtime_tally += 1
                 if ofi.atime() != fi.atime():
