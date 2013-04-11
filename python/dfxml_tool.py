@@ -72,7 +72,7 @@ class xml:
         self.f.write(s)
 
 
-def hash_file(fn,x):
+def hash_file(fn,x,partno=None):
     import hashlib
     
     try:
@@ -86,14 +86,21 @@ def hash_file(fn,x):
     if not args.nofilenames:
         if args.stripprefix and fn.startswith(args.stripprefix):
             x.xmlout("filename",fn[ len(args.stripprefix) : ])
+        elif args.stripleaddirs and args.stripleaddirs > 0:
+            x.xmlout("filename","/".join(fn.split("/")[args.stripleaddirs:]))
         else:
             x.xmlout("filename",fn)
 
+    import dfxml
     if not args.nometadata:
+        fistat = os.stat(fn)
         x.xmlout("filesize",os.path.getsize(fn))
-        x.xmlout("mtime",os.path.getmtime(fn),{'format':'time_t'})
-        x.xmlout("ctime",os.path.getctime(fn),{'format':'time_t'})
-        x.xmlout("atime",os.path.getatime(fn),{'format':'time_t'})
+        x.xmlout("mtime",str(dfxml.dftime(os.path.getmtime(fn))))
+        x.xmlout("ctime",str(dfxml.dftime(os.path.getctime(fn))))
+        x.xmlout("atime",str(dfxml.dftime(os.path.getatime(fn))))
+        if partno:
+            x.xmlout("partition",partno)
+        x.xmlout("inode",fistat.st_ino)
     
     if args.addfixml:
         x.write(args.addxml)
@@ -109,8 +116,18 @@ def hash_file(fn,x):
     if args.piecewise:
         x.push("byte_runs")
     offset = 0
+    read_error = False
     while True:
-        buf = f.read(chunk_size)
+        try:
+            buf = f.read(chunk_size)
+        except:
+            warning = "Warning: read() failed.  Cannot produce hash."
+            read_error = True
+            x.write("<!--")
+            x.write(warning)
+            x.write("-->\n")
+            sys.stderr.write("%s  File: %r\n" % (warning, fn))
+            buf = ""
         if buf=="": break
 
         if args.md5:    md5_all.update(buf)
@@ -142,12 +159,13 @@ def hash_file(fn,x):
     if args.piecewise:
         x.pop("byte_runs")
 
-    if args.md5:
-        x.write("<hashdigest type='MD5'>%s</hashdigest>\n" % (md5_all.hexdigest()))
-    if args.sha1:
-        x.write("<hashdigest type='SHA1'>%s</hashdigest>\n" % (sha1_all.hexdigest()))
-    if args.sha256:
-        x.write("<hashdigest type='SHA256'>%s</hashdigest>\n" % (sha256_all.hexdigest()))
+    if not read_error:
+        if args.md5:
+            x.write("<hashdigest type='MD5'>%s</hashdigest>\n" % (md5_all.hexdigest()))
+        if args.sha1:
+            x.write("<hashdigest type='SHA1'>%s</hashdigest>\n" % (sha1_all.hexdigest()))
+        if args.sha256:
+            x.write("<hashdigest type='SHA256'>%s</hashdigest>\n" % (sha256_all.hexdigest()))
     x.pop("fileobject")
     x.write("\n")
     
@@ -214,6 +232,7 @@ Note: MD5 output is assumed unless another hash algorithm is specified.
     parser.add_argument('--nometadata',help='Do not include file metadata (times & size) in XML',action='store_true')
     parser.add_argument('--nofilenames',help='Do not include filenames in XML',action='store_true')
     parser.add_argument('--stripprefix',help='Remove matching prefix string from filenames (e.g. "/mnt/diskname" would reduce "/mnt/diskname/foo" to "/foo", and would not affect "/run/mnt/diskname/foo")')
+    parser.add_argument('--stripleaddirs',help='Remove N leading directories from filenames (e.g. 1 would reduce "/mnt/diskname/foo" to "mnt/diskname/foo", 2 would reduce the same to "diskname/foo")',default=0,type=int)
     parser.add_argument('--title',help='HASHSET Title')
     parser.add_argument('--description',help='HASHSET Description')
     parser.add_argument('--publisher',help='HASHSET Publisher')
@@ -256,11 +275,11 @@ Note: MD5 output is assumed unless another hash algorithm is specified.
 
     # Generate the hashes
 
-    for fn in args.targets:
+    for (fn_no, fn) in enumerate(args.targets):
         if os.path.isdir(fn):
             for (dirpath,dirnames,filenames) in os.walk(fn):
                 for fn in filenames:
-                    hash_file(os.path.join(dirpath,fn),x)
+                    hash_file(os.path.join(dirpath,fn),x, fn_no+1)
         else:
             hash_file(fn,x)
     x.pop("dfxml")
