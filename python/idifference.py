@@ -16,6 +16,9 @@ Process:
 
 __version__ = "0.0.0"
 
+#TODO Google Chrome's command line JS includes a "dirxml(object)" method.  It's somewhat like Python's "dir", but XML.  dfxml.py has a few classes that could use an XML dump, and dirxml() seems like a sufficient name for it.
+# https://developers.google.com/chrome-developer-tools/docs/commandline-api
+
 import os,sys,fiwalk,dfxml,time
 if sys.version_info < (3,1):
     raise RuntimeError("idifference.py now requires Python 3.1 or above")
