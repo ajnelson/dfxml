@@ -72,6 +72,37 @@ class xml:
         self.f.write(s)
 
 
+def emit_directory(fn,x,partno=None):
+    x.push("fileobject")
+
+    if not args.nofilenames:
+        if args.stripprefix and fn.startswith(args.stripprefix):
+            x.xmlout("filename",fn[ len(args.stripprefix) : ])
+        elif args.stripleaddirs and args.stripleaddirs > 0:
+            x.xmlout("filename","/".join(fn.split("/")[args.stripleaddirs:]))
+        else:
+            x.xmlout("filename",fn)
+
+    import dfxml
+    if not args.nometadata:
+        fistat = os.stat(fn)
+        x.xmlout("filesize",os.path.getsize(fn))
+        x.xmlout("mtime",str(dfxml.dftime(os.path.getmtime(fn))))
+        x.xmlout("ctime",str(dfxml.dftime(os.path.getctime(fn))))
+        x.xmlout("atime",str(dfxml.dftime(os.path.getatime(fn))))
+        if partno:
+            x.xmlout("partition",partno)
+        x.xmlout("inode",fistat.st_ino)
+    
+    x.xmlout("name_type", "d")
+
+    if args.addfixml:
+        x.write(args.addxml)
+
+    x.pop("fileobject")
+    x.write("\n")
+    
+
 def hash_file(fn,x,partno=None):
     import hashlib
     
@@ -102,6 +133,10 @@ def hash_file(fn,x,partno=None):
             x.xmlout("partition",partno)
         x.xmlout("inode",fistat.st_ino)
     
+    #Distinguish regular files from directories, if directories are requested
+    if args.includedirs:
+        x.xmlout("name_type", "r")
+
     if args.addfixml:
         x.write(args.addxml)
 
@@ -233,6 +268,7 @@ Note: MD5 output is assumed unless another hash algorithm is specified.
     parser.add_argument('--nofilenames',help='Do not include filenames in XML',action='store_true')
     parser.add_argument('--stripprefix',help='Remove matching prefix string from filenames (e.g. "/mnt/diskname" would reduce "/mnt/diskname/foo" to "/foo", and would not affect "/run/mnt/diskname/foo")')
     parser.add_argument('--stripleaddirs',help='Remove N leading directories from filenames (e.g. 1 would reduce "/mnt/diskname/foo" to "mnt/diskname/foo", 2 would reduce the same to "diskname/foo")',default=0,type=int)
+    parser.add_argument('--includedirs',help='Include directories alongside files in file system walk output',action='store_true')
     parser.add_argument('--title',help='HASHSET Title')
     parser.add_argument('--description',help='HASHSET Description')
     parser.add_argument('--publisher',help='HASHSET Publisher')
@@ -278,6 +314,9 @@ Note: MD5 output is assumed unless another hash algorithm is specified.
     for (fn_no, fn) in enumerate(args.targets):
         if os.path.isdir(fn):
             for (dirpath,dirnames,filenames) in os.walk(fn):
+                if args.includedirs:
+                    for dn in dirnames:
+                        emit_directory(os.path.join(dirpath,dn),x, fn_no+1)
                 for fn in filenames:
                     hash_file(os.path.join(dirpath,fn),x, fn_no+1)
         else:
