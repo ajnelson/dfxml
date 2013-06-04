@@ -91,9 +91,15 @@ def hash_file(fn,x):
 
     if not args.nometadata:
         x.xmlout("filesize",os.path.getsize(fn))
-        x.xmlout("mtime",os.path.getmtime(fn),{'format':'time_t'})
-        x.xmlout("ctime",os.path.getctime(fn),{'format':'time_t'})
-        x.xmlout("atime",os.path.getatime(fn),{'format':'time_t'})
+        stats = os.stat(fn)
+        for (time_tag, time_field) in [
+          ("mtime",  "st_mtime"),
+          ("atime",  "st_atime"),
+          ("ctime",  "st_ctime"),
+          ("crtime", "st_birthtime")
+        ]:
+            if time_field in dir(stats):
+                x.xmlout(time_tag, getattr(stats, time_field), {'format':'time_t'})
     
     if args.addfixml:
         x.write(args.addxml)
