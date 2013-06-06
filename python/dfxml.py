@@ -544,6 +544,7 @@ class registry_value_object(registry_cell_object):
         If self.value_data is None, or there are no strings in a "string-list" type, this should return None.
         Interpretation: Registry values of type "string-list" are hashed by feeding each element of the list into the hash .update() function. All other Registry values are fed in the same way, as a 1-element list.
         For example, a string type value cell with data "a" fed into this function returns md5("a") (if hashlib.md5 were requested).  A string-list type value cell with data ["a","b"] returns md5("ab").
+        This is a simplification to deal with Registry string encodings, and may change in the future.
         """
         if self._hashcache.get(repr(hashfunc)) is None:
             feed_list = []
