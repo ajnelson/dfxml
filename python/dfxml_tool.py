@@ -72,6 +72,26 @@ class xml:
         self.f.write(s)
 
 
+def xmlout_times(x,fn,fistat):
+    global args
+    for (time_tag, time_field) in [
+      ("mtime",  "st_mtime"),
+      ("atime",  "st_atime"),
+      ("ctime",  "st_ctime"),
+      ("crtime", "st_birthtime")
+    ]:
+        if time_field in dir(fistat):
+            attrs_dict = dict()
+            time_data = getattr(fistat,time_field)
+            #Format timestamp data
+            if args.iso_8601:
+                import dfxml
+                text_out = str(dfxml.dftime(time_data))
+            else:
+                attrs_dict["format"] = "time_t"
+                text_out = str(time_data)
+            x.xmlout(time_tag, text_out, attrs_dict)
+
 def emit_directory(fn,x,partno=None):
     x.push("fileobject")
 
@@ -83,13 +103,10 @@ def emit_directory(fn,x,partno=None):
         else:
             x.xmlout("filename",fn)
 
-    import dfxml
     if not args.nometadata:
         fistat = os.stat(fn)
         x.xmlout("filesize",os.path.getsize(fn))
-        x.xmlout("mtime",str(dfxml.dftime(os.path.getmtime(fn))))
-        x.xmlout("ctime",str(dfxml.dftime(os.path.getctime(fn))))
-        x.xmlout("atime",str(dfxml.dftime(os.path.getatime(fn))))
+        xmlout_times(x,fn,fistat)
         if partno:
             x.xmlout("partition",partno)
         x.xmlout("inode",fistat.st_ino)
@@ -102,7 +119,6 @@ def emit_directory(fn,x,partno=None):
     x.pop("fileobject")
     x.write("\n")
     
-
 def hash_file(fn,x,partno=None):
     import hashlib
     
@@ -122,7 +138,6 @@ def hash_file(fn,x,partno=None):
         else:
             x.xmlout("filename",fn)
 
-    import dfxml
     if not args.nometadata:
         fistat = os.stat(fn)
         if partno:
@@ -130,15 +145,8 @@ def hash_file(fn,x,partno=None):
         x.xmlout("inode",fistat.st_ino)
         x.xmlout("filesize",fistat.st_size)
 
-        for (time_tag, time_field) in [
-          ("mtime",  "st_mtime"),
-          ("atime",  "st_atime"),
-          ("ctime",  "st_ctime"),
-          ("crtime", "st_birthtime")
-        ]:
-            if time_field in dir(fistat):
-                x.xmlout(time_tag, getattr(fistat, time_field), {'format':'time_t'})
- 
+        xmlout_times(x,fn,fistat)
+
     #Distinguish regular files from directories, if directories are requested
     if args.includedirs:
         x.xmlout("name_type", "r")
@@ -270,6 +278,7 @@ Note: MD5 output is assumed unless another hash algorithm is specified.
     parser.add_argument('--sha256',help='Generate sha256 hashes',action='store_true')
     parser.add_argument('--output',help='Specify output filename (default stdout)')
     parser.add_argument('--extract',help='Specify a DFXML to extract a hash set from')
+    parser.add_argument('--iso-8601',help='Format timestamps as ISO-8601 in metadata',action='store_true')
     parser.add_argument('--nometadata',help='Do not include file metadata (times & size) in XML',action='store_true')
     parser.add_argument('--nofilenames',help='Do not include filenames in XML',action='store_true')
     parser.add_argument('--stripprefix',help='Remove matching prefix string from filenames (e.g. "/mnt/diskname" would reduce "/mnt/diskname/foo" to "/foo", and would not affect "/run/mnt/diskname/foo")')
