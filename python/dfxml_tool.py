@@ -125,14 +125,19 @@ def hash_file(fn,x,partno=None):
     import dfxml
     if not args.nometadata:
         fistat = os.stat(fn)
-        x.xmlout("filesize",os.path.getsize(fn))
-        x.xmlout("mtime",str(dfxml.dftime(os.path.getmtime(fn))))
-        x.xmlout("ctime",str(dfxml.dftime(os.path.getctime(fn))))
-        x.xmlout("atime",str(dfxml.dftime(os.path.getatime(fn))))
+        x.xmlout("filesize",fistat.st_size)
+        for (time_tag, time_field) in [
+          ("mtime",  "st_mtime"),
+          ("atime",  "st_atime"),
+          ("ctime",  "st_ctime"),
+          ("crtime", "st_birthtime")
+        ]:
+            if time_field in dir(fistat):
+                x.xmlout(time_tag, getattr(fistat, time_field), {'format':'time_t'})
         if partno:
             x.xmlout("partition",partno)
         x.xmlout("inode",fistat.st_ino)
-    
+
     #Distinguish regular files from directories, if directories are requested
     if args.includedirs:
         x.xmlout("name_type", "r")
