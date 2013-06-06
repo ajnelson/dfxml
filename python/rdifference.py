@@ -15,7 +15,7 @@ Process:
 
 #AJN This script does not call out duplicate paths, but they are reported.
 
-import sys,fiwalk,dfxml,time
+import sys,fiwalk,dfxml,time,logging
 if sys.version_info < (3,1):
     raise RuntimeError("rdifference.py requires Python 3.1 or above")
 
@@ -31,7 +31,7 @@ def ptime(t):
 
 def dprint(x):
     global options
-    if options.debug: print(x)
+    logging.debug(x)
 
 def header():
     if options.html:
@@ -118,7 +118,6 @@ class HiveState:
         self.cnames = self.new_cnames
         self.new_cnames = dict()
         self.new_files          = set()     # set of file objects
-        self.renamed_files      = set()     # set of (oldfile,newfile) file objects
         self.changed_content    = set()     # set of (oldfile,newfile) file objects
         self.changed_properties = set()     # list of (oldfile,newfile) file objects
         if self.notimeline:
@@ -141,12 +140,22 @@ class HiveState:
         # See if this filename changed or was resized
         ocell = self.cnames.get(cell.full_path(),None)
         if ocell:
-            dprint("   found ocell")
+            dprint("   found ocell: " + cell.full_path())
             if ocell.sha1()!=cell.sha1():
                 dprint("      >>> sha1 changed")
                 self.changed_content.add((ocell,cell))
+
             if ocell.mtime() != cell.mtime():
-                dprint("      >>> mtime changed")
+                dprint("      >>> Mtime changed")
+                self.changed_properties.add((ocell,cell))
+            elif ocell.type() != cell.type():
+                dprint("      >>> Cell content type changed")
+                self.changed_properties.add((ocell,cell))
+            elif type(ocell) != type(cell):
+                dprint("      >>> Cell structural type changed")
+                self.changed_properties.add((ocell,cell))
+            elif ( (ocell.parent_key and ocell.parent_key.mtime()) or None ) != ( (cell.parent_key and cell.parent_key.mtime()) or None ):
+                dprint("      >>> Parent mtimes changed")
                 self.changed_properties.add((ocell,cell))
 
         # If a new file, note that (and optionally add to the timeline)
@@ -163,7 +172,7 @@ class HiveState:
     def process(self,fname):
         self.current_fname = fname
         if fname.endswith(".regxml"):
-            reader = dfxml.read_regxml(xmlfile=open(infile,'rb'), callback=self.process_cell)
+            reader = dfxml.read_regxml(xmlfile=open(self.current_fname,'rb'), callback=self.process_cell)
 
     def print_cells(self,title,cells):
         h2(title)
@@ -189,8 +198,8 @@ class HiveState:
             if ocell.mtime() != cell.mtime():
                 res.add((ocell.full_path(),"mtime changed",ptime(ocell.mtime()),"->",ptime(cell.mtime())))
                 if self.timeline: self.timeline.add((cell.mtime(),cell.full_path(),"mtime changed",prtime(ocell.mtime()),"->",prtime(cell.mtime())))
-            if ocell.type != cell.type:
-                res.add((ocell.full_path(),"cell type changed",ocell.type,"->",cell.type))
+            if ocell.type() != cell.type():
+                res.add((ocell.full_path(),"cell type changed",ocell.type(),"->",cell.type()))
                 if self.timeline: self.timeline.add((cell.mtime(),cell.full_path(),"cell type changed",prtime(ocell.mtime()),"->",prtime(cell.mtime())))
 
         if res:
@@ -301,6 +310,13 @@ if __name__=="__main__":
     parser.add_option("--timestamp",help="output all times in Unix timestamp format; otherwise use ISO 8601",action="store_true")
 
     (options,args) = parser.parse_args()
+
+    #Set up logging
+    logging.basicConfig(
+      format='%(asctime)s %(levelname)s: %(message)s',
+      datefmt='%Y-%m-%dT%H:%M:%SZ',
+      level=logging.DEBUG if options.debug else logging.INFO
+    )
 
     if len(args)<1:
         parser.print_help()
