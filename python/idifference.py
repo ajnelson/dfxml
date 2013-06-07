@@ -14,7 +14,7 @@ Process:
 4. Replace the old maps with the new maps
 """
 
-import sys,fiwalk,dfxml,time
+import sys,fiwalk,dfxml,time,collections
 if sys.version_info < (3,1):
     raise RuntimeError("idifference.py now requires Python 3.1 or above")
 
@@ -169,7 +169,7 @@ class DiskState:
         if ofi:
             dprint("   found ofi")
             if ofi.sha1()!=fi.sha1():
-                if ofi.name_type() == "d" and fi.name_type() == "d" and args.relax_dir_checks:
+                if ofi.name_type() == "d" and fi.name_type() == "d" and options.relax_dir_checks:
                     pass
                 else:
                     dprint("      >>> sha1 changed")
@@ -202,7 +202,7 @@ class DiskState:
             #For directories, we might consider this sufficient for a rename
             if ofi.name_type() == "d" and fi.name_type() == "d":
                 #Utilities don't always have consistent size-reporting and content hashing for directories; if relaxed checks are called for, just consider the matched partition+inode sufficient.
-                if args.relax_dir_checks:
+                if options.relax_dir_checks:
                     is_rename = True
                 else:
                     if ofi.sha1()==fi.sha1():
