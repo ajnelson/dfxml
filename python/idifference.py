@@ -117,6 +117,7 @@ class DiskState:
     def __init__(self,notimeline=False,summary=False,include_dotdirs=False):
         self.new_fnames = dict() # maps from fname -> fi
         self.new_inodes = dict() # maps from inode_number -> fi
+        self.new_multilinks = collections.defaultdict(list) # maps from (partition,inode_number) -> [fname]
         self.new_fi_tally = 0
         self.notimeline = notimeline
         self.summary = summary
@@ -128,9 +129,11 @@ class DiskState:
         global options
         self.fnames = self.new_fnames
         self.inodes = self.new_inodes
+        self.multilinks = self.new_multilinks
         self.fi_tally = self.new_fi_tally
         self.new_fnames = dict()
         self.new_inodes = dict()
+        self.new_multilinks = collections.defaultdict(list)
         self.new_files          = set()     # set of file objects
         self.renamed_files      = set()     # set of (oldfile,newfile) file objects
         self.changed_content    = set()     # set of (oldfile,newfile) file objects
@@ -155,7 +158,10 @@ class DiskState:
 
         # Remember the file for the next generation
         self.new_fnames[fi.filename()] = fi
-        self.new_inodes[fi.partition() + "/" + fi.inode()] = fi
+        inodes_key = fi.partition() + "/" + fi.inode()
+        if inodes_key in self.new_inodes:
+            self.new_multilinks[inodes_key].append(fi.filename())
+        self.new_inodes[inodes_key] = fi
         self.new_fi_tally += 1
 
         # See if this filename changed or was resized
@@ -163,8 +169,11 @@ class DiskState:
         if ofi:
             dprint("   found ofi")
             if ofi.sha1()!=fi.sha1():
-                dprint("      >>> sha1 changed")
-                self.changed_content.add((ofi,fi))
+                if ofi.name_type() == "d" and fi.name_type() == "d" and args.relax_dir_checks:
+                    pass
+                else:
+                    dprint("      >>> sha1 changed")
+                    self.changed_content.add((ofi,fi))
             elif ofi.atime() != fi.atime() or \
                     ofi.mtime() != fi.mtime() or \
                     ofi.crtime() != fi.crtime() or \
@@ -186,10 +195,34 @@ class DiskState:
             del self.fnames[fi.filename()]
 
         # Look for files that were renamed
-        ofi = self.inodes.get(fi.partition() + "/" + fi.inode(),None)
-        if ofi and ofi.filename() != fi.filename() and ofi.sha1()==fi.sha1():
+        is_rename = False
+        ofi = self.inodes.get(inodes_key, None)
+        if ofi and ofi.filename() != fi.filename():
+            #Established: Matching partition and inode number, different names
+            #For directories, we might consider this sufficient for a rename
+            if ofi.name_type() == "d" and fi.name_type() == "d":
+                #Utilities don't always have consistent size-reporting and content hashing for directories; if relaxed checks are called for, just consider the matched partition+inode sufficient.
+                if args.relax_dir_checks:
+                    is_rename = True
+                else:
+                    if ofi.sha1()==fi.sha1():
+                        is_rename = True
+
+            #For files, use checksums and hard link check to confirm a renamed file
+            else:
+                if ofi.sha1()==fi.sha1():
+                    ofnames = self.multilinks.get(inodes_key)
+                    if fi.filename() in ofnames:
+                        #The file was just hard-linked multiple times before
+                        is_rename = False
+                    else:
+                        is_rename = True
+
             #Never consider current-directory or parent-directory for rename operations.  Because we match on partition+inode numbers, these trivially match.
             if not (fi.filename().endswith("/.") or fi.filename().endswith("/..") or ofi.filename().endswith("/.") or ofi.filename().endswith("/..")):
+                is_rename = False
+
+            if is_rename:
                 self.renamed_files.add((ofi,fi))
 
     def process(self,fname):
@@ -368,6 +401,7 @@ if __name__=="__main__":
     parser.add_option("--summary",help="output summary statistics of file system changes",action="store_true", default=False)
     parser.add_option("--timestamp",help="output all times in Unix timestamp format; otherwise use ISO 8601",action="store_true")
     parser.add_option("--imagefile",help="specifies imagefile or file2 is an XML file and you are archiving")
+    parser.add_option("--relax-dir-checks",help="Do not compare directory sizes or checksums",action="store_true")
 
     (options,args) = parser.parse_args()
 
