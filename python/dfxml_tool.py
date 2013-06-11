@@ -167,6 +167,7 @@ def hash_file(fn,x,partno=None):
     offset = 0
     read_error = False
     while True:
+        buf = ""
         try:
             buf = f.read(chunk_size)
         except:
