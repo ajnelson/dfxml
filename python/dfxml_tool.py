@@ -94,7 +94,7 @@ class xml:
         self.f.write(s)
 
 
-def xmlout_times(x,fn,fistat):
+def xmlout_times(fn,x,fistat):
     global args
     for (time_tag, time_field) in [
       ("mtime",  "st_mtime"),
@@ -128,7 +128,7 @@ def emit_directory(fn,x,partno=None):
     if not args.nometadata:
         fistat = os.stat(fn)
         x.xmlout("filesize",os.path.getsize(fn))
-        xmlout_times(x,fn,fistat)
+        xmlout_times(fn,x,fistat)
         if partno:
             x.xmlout("partition",partno)
         x.xmlout("inode",fistat.st_ino)
@@ -167,7 +167,7 @@ def hash_file(fn,x,partno=None):
         x.xmlout("inode",fistat.st_ino)
         x.xmlout("filesize",fistat.st_size)
 
-        xmlout_times(x,fn,fistat)
+        xmlout_times(fn,x,fistat)
 
     #Distinguish regular files from directories, if directories are requested
     if args.includedirs:
