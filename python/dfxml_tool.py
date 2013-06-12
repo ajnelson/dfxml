@@ -127,11 +127,11 @@ def emit_directory(fn,x,partno=None):
 
     if not args.nometadata:
         fistat = os.stat(fn)
-        x.xmlout("filesize",os.path.getsize(fn))
-        xmlout_times(fn,x,fistat)
         if partno:
             x.xmlout("partition",partno)
         x.xmlout("inode",fistat.st_ino)
+        x.xmlout("filesize",fistat.st_size)
+        xmlout_times(fn,x,fistat)
     
     x.xmlout("name_type", "d")
 
