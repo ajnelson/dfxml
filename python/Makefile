@@ -1,4 +1,5 @@
 check: check-dfxml check-dfxml_tool
+	@echo "Tests passed!"
 
 check-dfxml:
 	./test_dfxml.sh
