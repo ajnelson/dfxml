@@ -1366,7 +1366,15 @@ def read_dfxml(xmlfile=None,imagefile=None,flags=0,callback=None,preserve_fis=Fa
     r.process_xml_stream(xmlfile,callback,preserve_fis)
     return r
 
-def iter_dfxml(xmlfile):
+def iter_dfxml(xmlfile, preserve_elements=False):
+    """Returns an interator that yields fileobjects from a DFXML file.
+    
+    Yielded fileobjects can also retain the xml.etree.ElementTree.Element,
+    the fileobject's source XML as a manipulable object.
+    Pass preserve_elements=True.
+    
+    Might be extended in the future to call Fiwalk (and thus become
+    what fileobjects_iter was supposed to be)."""
     import io
     import xml.etree.ElementTree as ET
     if not xmlfile:
@@ -1379,7 +1387,9 @@ def iter_dfxml(xmlfile):
                 pseudof.write(xmlstring)
                 pseudof.seek(0)
                 def temp_callback(fi):
-                    pass
+                    #TODO The volumeobject isn't populated this way; need to catch with iterparse.
+                    if preserve_elements:
+                        fi.xml_element = elem
                 reader = read_dfxml(pseudof, callback=temp_callback, preserve_fis=True)
                 yield reader.fi_history[0]
 
