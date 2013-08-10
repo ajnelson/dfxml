@@ -14,6 +14,8 @@ Process:
 4. Replace the old maps with the new maps
 """
 
+__version__ = "0.2.0alpha"
+
 import sys,fiwalk,dfxml,time
 if sys.version_info < (3,1):
     raise RuntimeError("idifference.py now requires Python 3.1 or above")
@@ -193,6 +195,7 @@ class DiskState:
                 self.renamed_files.add((ofi,fi))
 
     def process(self,fname):
+        self.prior_fname = self.current_fname
         self.current_fname = fname
         if fname.endswith("xml"):
             fiwalk.fiwalk_using_sax(xmlfile=open(infile,'rb'), flags=fiwalk.ALLOC_ONLY, callback=self.process_fi)
@@ -249,6 +252,30 @@ class DiskState:
             prt.append([ptime(line[0])]+list(line[1:]))
         h2("Timeline")
         table(prt)
+
+    def to_xml(self):
+        print("""\
+<?xml version="1.0" encoding="UTF-8"?>
+<dfxml xmloutputversion="1.0">
+  <metadata 
+  xmlns='http://www.forensicswiki.org/wiki/Category:Digital_Forensics_XML'
+  xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' 
+  xmlns:dc='http://purl.org/dc/elements/1.1/'>
+    <dc:type>Disk Image Difference Manifest</dc:type>
+  </metadata>
+  <creator version="1.0">
+    <program>%s</program>
+    <version>%s</version>
+    <execution_environment>
+      <command_line>%s</command_line>
+    </execution_environment>
+  </creator>
+  <source>
+    <image_filename>%s</image_filename>
+    <image_filename>%s</image_filename>
+  </source>\
+""" % (sys.argv[0], __version__, " ".join(sys.argv), self.prior_fname, self.current_fname))
+        print("</dfxml>")
 
     def report(self):
         header()
