@@ -3,7 +3,7 @@
   <creator version='1.0'>
     <program>vi</program>
     <version>7.3</version>
-    <command_line>vi post.xml</command>
+    <command_line>vi post.xml</command_line>
   </creator>
   <fileobject>
     <filename>i_am_new.txt</filename>

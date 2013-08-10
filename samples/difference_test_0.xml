@@ -3,7 +3,7 @@
   <creator version='1.0'>
     <program>vi</program>
     <version>7.3</version>
-    <command_line>vi pre.xml</command>
+    <command_line>vi pre.xml</command_line>
   </creator>
   <fileobject>
     <filename>i_will_be_deleted.txt</filename>
