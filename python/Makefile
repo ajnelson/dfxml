@@ -19,3 +19,4 @@ check-mac_timelines:
 	
 clean:
 	rm -f dfxml_tool_*xml
+	rm -f cat_test_{,no}cache.dfxml

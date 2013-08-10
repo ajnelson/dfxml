@@ -12,9 +12,7 @@ if sys.version < "3":
     exit(1)
 
 def main():
-    if len(sys.argv) < 2:
-        sys.stderr.write("Usage: %s <filename.xml>\n" % sys.argv[0])
-        exit(1)
+
     print("""\
 <?xml version="1.0" encoding="UTF-8"?>
 <dfxml xmloutputversion="1.0">
@@ -26,9 +24,23 @@ def main():
     </execution_environment>
   </creator>\
 """ % (sys.argv[0], __version__, " ".join(sys.argv)))
-    for fi in dfxml.iter_dfxml(xmlfile=open(sys.argv[1], "rb"), preserve_elements=True):
-        print(ET.tostring(fi.xml_element, encoding="unicode"))
+
+    xs = []
+    for fi in dfxml.iter_dfxml(xmlfile=open(args.filename, "rb"), preserve_elements=True):
+        if args.cache:
+            xs.append(fi.xml_element)
+        else:
+            print(ET.tostring(fi.xml_element, encoding="unicode"))
+    if args.cache:
+        for x in xs:
+            print(ET.tostring(x, encoding="unicode"))
+
     print("""</dfxml>""")
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("filename")
+    parser.add_argument("--cache", action="store_true")
+    args = parser.parse_args()
     main()

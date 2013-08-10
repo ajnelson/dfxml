@@ -1369,12 +1369,17 @@ def read_dfxml(xmlfile=None,imagefile=None,flags=0,callback=None,preserve_fis=Fa
 def iter_dfxml(xmlfile, preserve_elements=False):
     """Returns an interator that yields fileobjects from a DFXML file.
     
+    @param preserve_elements
     Yielded fileobjects can also retain the xml.etree.ElementTree.Element,
     the fileobject's source XML as a manipulable object.
     Pass preserve_elements=True.
+    NOTE: Retaining Elements is quite memory-intensive.  Creating a MAC
+    timeline from DFXML of the "CFREDS Hacking" image (a 34MB XML file)
+    using demo_mac_timeline_iter.py maxed at 65MB of RAM without
+    preserve_elements, and about 650MB with.  
     
-    Might be extended in the future to call Fiwalk (and thus become
-    what fileobjects_iter was supposed to be)."""
+    This function might be extended in the future to call Fiwalk (and
+    thus become what fileobjects_iter was supposed to be)."""
     import io
     import xml.etree.ElementTree as ET
     if not xmlfile:
@@ -1392,6 +1397,8 @@ def iter_dfxml(xmlfile, preserve_elements=False):
                         fi.xml_element = elem
                 reader = read_dfxml(pseudof, callback=temp_callback, preserve_fis=True)
                 yield reader.fi_history[0]
+                if not preserve_elements:
+                    elem.clear()
 
 def read_regxml(xmlfile=None,flags=0,callback=None):
     """Processes an image using expat, calling a callback for node encountered."""
