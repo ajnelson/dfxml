@@ -14,7 +14,7 @@ Process:
 4. Replace the old maps with the new maps
 """
 
-__version__ = "0.2.0alpha"
+__version__ = "0.2.0rfc"
 
 import sys,fiwalk,dfxml,time
 if sys.version_info < (3,1):
@@ -117,6 +117,7 @@ class DiskState:
     global options
 
     def __init__(self,notimeline=False,summary=False,include_dotdirs=False):
+        self.current_fname = None # This class field is the name of the current disk image, whereas other fnames are in-image file names
         self.new_fnames = dict() # maps from fname -> fi
         self.new_inodes = dict() # maps from (partition, inode_number) -> fi
         self.new_fi_tally = 0
@@ -254,7 +255,11 @@ class DiskState:
         table(prt)
 
     def to_xml(self):
-        print("""\
+        if not options.xmlfilename:
+            sys.stderr.write("XML output filename not specified.\n")
+            exit(1)
+        xmlfile = open(options.xmlfilename, "w")
+        xmlfile.write("""\
 <?xml version="1.0" encoding="UTF-8"?>
 <dfxml xmloutputversion="1.0">
   <metadata 
@@ -273,9 +278,25 @@ class DiskState:
   <source>
     <image_filename>%s</image_filename>
     <image_filename>%s</image_filename>
-  </source>\
+  </source>
 """ % (sys.argv[0], __version__, " ".join(sys.argv), self.prior_fname, self.current_fname))
-        print("</dfxml>")
+
+        #List new files
+        for fi in self.new_files:
+            xmlfile.write("<!-- + %s -->\n" % fi.filename())
+        #List deleted files
+        for fi in self.fnames.values():
+            xmlfile.write("<!-- - %s -->\n" % fi.filename())
+        #List renamed files
+        for (ofi, fi) in self.renamed_files:
+            xmlfile.write("<!-- ! %s -> %s -->\n" % (ofi.filename(), fi.filename()))
+        #List files with with modified data or metadata
+        changed_files = set.union(set(self.changed_content), set(self.changed_properties))
+        for (ofi, fi) in changed_files:
+            xmlfile.write("<!-- ~ %s -->\n" % fi.filename())
+
+        xmlfile.write("</dfxml>\n")
+        xmlfile.close()
 
     def report(self):
         header()
@@ -418,5 +439,8 @@ if __name__=="__main__":
                 if imagefilename.endswith("xml"):
                     imagefilename = options.imagefile
                 s.output_archive(imagefile=open(imagefilename),tarname=options.tarfile,zipname=options.zipfile)
-            s.report()
+            if options.xmlfilename:
+                s.to_xml()
+            else:
+                s.report()
         s.next()
