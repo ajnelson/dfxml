@@ -1372,7 +1372,7 @@ def iter_dfxml(xmlfile, preserve_elements=False):
     @param preserve_elements
     Yielded fileobjects can also retain the xml.etree.ElementTree.Element,
     the fileobject's source XML as a manipulable object.
-    Pass preserve_elements=True.
+    Pass preserve_elements=True to get fi.xml_element.
     NOTE: Retaining Elements is quite memory-intensive.  Creating a MAC
     timeline from DFXML of the "CFREDS Hacking" image (a 34MB XML file)
     using demo_mac_timeline_iter.py maxed at 65MB of RAM without
