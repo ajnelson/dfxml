@@ -8,3 +8,4 @@ set -e
 set -x
 
 "$PYTHON3" idifference.py --xml idifference_test.dfxml ../samples/difference_test_[01].xml
+xmllint --format idifference_test.dfxml >idifference_test_formatted.dfxml
