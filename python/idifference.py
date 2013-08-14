@@ -275,7 +275,7 @@ class DiskState:
 <?xml version="1.0" encoding="UTF-8"?>
 <dfxml
   xmloutputversion="1.0"
-  xmlns:delta='http://dfrws.org/2012/proceedings/DFRWS2012-TODO.pdf'>
+  xmlns:delta='http://dfrws.org/2012/proceedings/DFRWS2012-6.pdf'>
   <metadata 
   xmlns='http://www.forensicswiki.org/wiki/Category:Digital_Forensics_XML'
   xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' 
@@ -294,6 +294,39 @@ class DiskState:
     <image_filename>%(currentf)s</image_filename>
   </source>
 """ % metadict)
+
+        def _annotate_changes(tmpel, ofi, fi):
+            """
+            Adds "delta:changed_property" attributes to elements that changed their values.
+            Returns number of annotations added.
+            """
+            retval = 0
+            # Triplets: Old value, new value, XPath to find element to annotate
+            for (oval, nval, xpath) in [
+              (ofi.filename(), fi.filename(), "./filename"),
+              (ofi.sha1(), fi.sha1(), "./hashdigest[@type='sha1']"),
+              (ofi.md5(), fi.md5(), "./hashdigest[@type='md5']"),
+              (ofi.mtime(), fi.mtime(), "./mtime"),
+              (ofi.atime(), fi.atime(), "./atime"),
+              (ofi.ctime(), fi.ctime(), "./ctime"),
+              (ofi.crtime(), fi.crtime(), "./crtime"),
+              (ofi.filesize(), fi.filesize(), "./filesize")
+            ]:
+                #Find and flag the changed properties
+
+                #Skip null-null comparisons
+                if oval is None and nval is None:
+                    continue
+
+                if oval != nval:
+                    retval += 1
+                    propertyel = tmpel.find(xpath)
+                    if propertyel is None:
+                        comment = ET.Comment("Tried to note a changed property with the XPath query %r; however, could not find the element." % xpath)
+                        tmpel.insert(0, comment)
+                    else:
+                        propertyel.attrib["delta:changed_property"] = "1"
+            return retval
 
         #List new files
         for fi in self.new_files:
@@ -317,21 +350,29 @@ class DiskState:
         #List renamed files
         for (ofi, fi) in self.renamed_files:
             xmlfile.write("<!-- ! %s -> %s -->\n" % (ofi.filename(), fi.filename()))
-            #TODO Write test element
+            tmpel = fi.xml_element.copy()
+            propertyel = tmpel.find("filename")
+            propertyel.attrib["delta:changed_property"] = "1"
+            annos = _annotate_changes(tmpel, ofi, fi)
+            tmpoldel = ofi.xml_element.copy()
+            tmpoldel.tag = "delta:old_fileobject"
+            tmpel.append(tmpoldel)
+            tmpel.attrib["delta:renamed_file"] = "1"
+            if annos > 1:
+                tmpel.attrib["delta:changed_file"] = "1"
+            xmlfile.write(ET.tostring(tmpel, encoding="unicode"))
+            xmlfile.write("\n")
         #List files with with modified data or metadata
         changed_files = set.union(set(self.changed_content), set(self.changed_properties))
         for (ofi, fi) in changed_files:
             xmlfile.write("<!-- ~ %s -->\n" % fi.filename())
             xmlfile.write("  ")
             tmpel = fi.xml_element.copy()
-            tmpel.attrib["delta:changed_file"] = "1"
-            for fattr in ["hashdigest", "mtime", "atime", "ctime", "crtime", "filesize"]:
-                pass
-                #TODO Find and flag the changed properties
-                #propel.attrib["delta:changed_property"] = "1"
+            _annotate_changes(tmpel, ofi, fi)
             tmpoldel = ofi.xml_element.copy()
             tmpoldel.tag = "delta:old_fileobject"
-            tmpel.insert(-1, tmpoldel)
+            tmpel.append(tmpoldel)
+            tmpel.attrib["delta:changed_file"] = "1"
             xmlfile.write(ET.tostring(tmpel, encoding="unicode"))
             xmlfile.write("\n")
         xmlfile.write("</dfxml>\n")
