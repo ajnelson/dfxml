@@ -199,7 +199,9 @@ class DiskState:
         self.prior_fname = self.current_fname
         self.current_fname = fname
         if fname.endswith("xml"):
-            fiwalk.fiwalk_using_sax(xmlfile=open(infile,'rb'), flags=fiwalk.ALLOC_ONLY, callback=self.process_fi)
+            with open(infile,'rb') as xmlfile:
+                for fi in dfxml.iter_dfxml(xmlfile, preserve_elements=True):
+                    self.process_fi(fi)
         else:
             fiwalk.fiwalk_using_sax(imagefile=open(infile,'rb'), flags=fiwalk.ALLOC_ONLY, callback=self.process_fi)
 
@@ -255,13 +257,25 @@ class DiskState:
         table(prt)
 
     def to_xml(self):
+        import xml.etree.ElementTree as ET
         if not options.xmlfilename:
             sys.stderr.write("XML output filename not specified.\n")
             exit(1)
+
+        metadict = dict()
+        metadict["program"] = sys.argv[0]
+        metadict["version"] = __version__
+        metadict["commandline"] = " ".join(sys.argv)
+        metadict["priorf"] = self.prior_fname
+        metadict["currentf"] = self.current_fname
+
         xmlfile = open(options.xmlfilename, "w")
+#TODO Find that PDF address
         xmlfile.write("""\
 <?xml version="1.0" encoding="UTF-8"?>
-<dfxml xmloutputversion="1.0">
+<dfxml
+  xmloutputversion="1.0"
+  xmlns:delta='http://dfrws.org/2012/proceedings/DFRWS2012-TODO.pdf'>
   <metadata 
   xmlns='http://www.forensicswiki.org/wiki/Category:Digital_Forensics_XML'
   xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' 
@@ -269,32 +283,57 @@ class DiskState:
     <dc:type>Disk Image Difference Manifest</dc:type>
   </metadata>
   <creator version="1.0">
-    <program>%s</program>
-    <version>%s</version>
+    <program>%(program)s</program>
+    <version>%(version)s</version>
     <execution_environment>
-      <command_line>%s</command_line>
+      <command_line>%(commandline)s</command_line>
     </execution_environment>
   </creator>
   <source>
-    <image_filename>%s</image_filename>
-    <image_filename>%s</image_filename>
+    <image_filename>%(priorf)s</image_filename>
+    <image_filename>%(currentf)s</image_filename>
   </source>
-""" % (sys.argv[0], __version__, " ".join(sys.argv), self.prior_fname, self.current_fname))
+""" % metadict)
 
         #List new files
         for fi in self.new_files:
-            xmlfile.write("<!-- + %s -->\n" % fi.filename())
+            xmlfile.write("  <!-- + %s -->\n" % fi.filename())
+            xmlfile.write("  ")
+            tmpel = fi.xml_element.copy()
+            tmpel.attrib["delta:new_file"] = "1"
+            xmlfile.write(ET.tostring(tmpel, encoding="unicode"))
+            xmlfile.write("\n")
         #List deleted files
         for fi in self.fnames.values():
             xmlfile.write("<!-- - %s -->\n" % fi.filename())
+            xmlfile.write("  ")
+            tmpel = ET.Element("fileobject")
+            tmpel.attrib["delta:deleted_file"] = "1"
+            tmpchild = fi.xml_element.copy()
+            tmpchild.tag = "delta:old_fileobject"
+            tmpel.insert(-1, tmpchild)
+            xmlfile.write(ET.tostring(tmpel, encoding="unicode"))
+            xmlfile.write("\n")
         #List renamed files
         for (ofi, fi) in self.renamed_files:
             xmlfile.write("<!-- ! %s -> %s -->\n" % (ofi.filename(), fi.filename()))
+            #TODO Write test element
         #List files with with modified data or metadata
         changed_files = set.union(set(self.changed_content), set(self.changed_properties))
         for (ofi, fi) in changed_files:
             xmlfile.write("<!-- ~ %s -->\n" % fi.filename())
-
+            xmlfile.write("  ")
+            tmpel = fi.xml_element.copy()
+            tmpel.attrib["delta:changed_file"] = "1"
+            for fattr in ["hashdigest", "mtime", "atime", "ctime", "crtime", "filesize"]:
+                pass
+                #TODO Find and flag the changed properties
+                #propel.attrib["delta:changed_property"] = "1"
+            tmpoldel = ofi.xml_element.copy()
+            tmpoldel.tag = "delta:old_fileobject"
+            tmpel.insert(-1, tmpoldel)
+            xmlfile.write(ET.tostring(tmpel, encoding="unicode"))
+            xmlfile.write("\n")
         xmlfile.write("</dfxml>\n")
         xmlfile.close()
 
