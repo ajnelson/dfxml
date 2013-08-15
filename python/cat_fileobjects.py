@@ -22,8 +22,11 @@ def main():
     <execution_environment>
       <command_line>%s</command_line>
     </execution_environment>
-  </creator>\
-""" % (sys.argv[0], __version__, " ".join(sys.argv)))
+  </creator>
+  <source>
+    <image_filename>%s</image_filename>
+  </source>\
+""" % (sys.argv[0], __version__, " ".join(sys.argv), args.filename))
 
     xs = []
     for fi in dfxml.iter_dfxml(xmlfile=open(args.filename, "rb"), preserve_elements=True):
