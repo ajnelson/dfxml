@@ -9,7 +9,7 @@ set -e
 #Display all executed commands
 set -x
 
-#NOTE: Python2's ETree does not understnad the "unicode" output encoding.
+#NOTE: Python2's ETree does not understand the "unicode" output encoding.
 #"$PYTHON2" cat_fileobjects.py ../samples/simple.xml
 "$PYTHON3" cat_fileobjects.py ../samples/simple.xml >cat_test_nocache.dfxml
 "$PYTHON3" cat_fileobjects.py --cache ../samples/simple.xml >cat_test_cache.dfxml
