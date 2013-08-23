@@ -5,8 +5,8 @@
  * Optimized for DFXML generation.
  */
 
-#ifndef _DFXML_GENERATOR_H_
-#define _DFXML_GENERATOR_H_
+#ifndef _DFXML_WRITER_H_
+#define _DFXML_WRITER_H_
 
 #ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
@@ -67,18 +67,8 @@ class dfxml_writer {
 private:
     /*** neither copying nor assignment is implemented ***
      *** We do this by making them private constructors that throw exceptions. ***/
-    class not_impl: public std::exception {
-        virtual const char *what() const throw() {
-            return "copying feature_recorder objects is not implemented.";
-        }
-    };
-    dfxml_writer(const dfxml_writer &fr) __attribute__((__noreturn__)):
-        M(),outf(),out(),tags(),tag_stack(),tempfilename(),tempfile_template(),
-	t0(),t_last_timestamp(),
-        make_dtd(),outfilename(),oneline(){
-        throw new not_impl();
-    }
-    const dfxml_writer &operator=(const dfxml_writer &x){ throw new not_impl(); }
+    dfxml_writer(const dfxml_writer &);
+    dfxml_writer &operator=(const dfxml_writer &);
     /****************************************************************/
 
 public:
@@ -188,6 +178,9 @@ public:
     void xmlout( const std::string &tag,const uint32_t value){ xmlprintf(tag,"",xml_PRIu32.c_str(),value); }
     void xmlout( const std::string &tag,const int64_t value){ xmlprintf(tag,"",xml_PRId64.c_str(),value); }
     void xmlout( const std::string &tag,const uint64_t value){ xmlprintf(tag,"",xml_PRIu64.c_str(),value); }
+#ifdef __APPLE__
+    void xmlout( const std::string &tag,const size_t value){ xmlprintf(tag,"",xml_PRIu64.c_str(),value); }
+#endif
 #endif
     void xmlout( const std::string &tag,const double value){ xmlprintf(tag,"","%f",value); }
     void xmlout( const std::string &tag,const struct timeval &ts) {

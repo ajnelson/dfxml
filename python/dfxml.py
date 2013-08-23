@@ -940,6 +940,11 @@ register_sax_tag(imageobject_sax,'imagesize')
 register_sax_tag(imageobject_sax,'image_filename')
 
 
+class creatorobject_sax(saxobject):
+    """A class that represents the <creator> section of a DFXML file"""
+for tag in ['creator','program','version']:
+    register_sax_tag(creatorobject_sax,tag)
+
 ################################################################
 
 ################################################################
@@ -975,9 +980,11 @@ class xml_reader:
         if self.cdata != None:
             self.cdata += data
 
-    def process_xml_stream(self,xml_stream,callback):
+    def process_xml_stream(self,xml_stream,callback,preserve_fis=False):
         "Run the reader on a given XML input stream"
         self.callback = callback
+        self.preserve_fis = preserve_fis
+        self.fi_history = []
         import xml.parsers.expat
         p = xml.parsers.expat.ParserCreate()
         p.StartElementHandler  = self._start_element
@@ -1107,7 +1114,7 @@ class regxml_reader(xml_reader):
         """
         The callback is invoked for each stack-popping operation, except the root.
         """
-        #TODO sanity-check the objectstack
+        # TODO sanity-check the objectstack
         if name in ["msregistry","hive"]:
             pass
         elif name in ["key","node"]:
@@ -1191,6 +1198,8 @@ class fileobject_reader(xml_reader):
             return
         if name=="fileobject":
             self.callback(self.fileobject)
+            if self.preserve_fis:
+                self.fi_history.append(self.fileobject)
             self.fileobject = None
             return
         if name=='hashdigest' and len(self.tagstack)>0:
@@ -1213,6 +1222,7 @@ class fileobject_reader(xml_reader):
             self.imageobject._tags['image_filename'] = self.cdata
 
 class volumeobject_reader(xml_reader):
+    """Reads just the <volume> section of a DFXML file"""
     def __init__(self):
         self.volumeobject = False
         xml_reader.__init__(self)
@@ -1249,6 +1259,37 @@ class volumeobject_reader(xml_reader):
         if name in ['image_filename','imagefile'] and self.tagstack[-1]=='source':
             self.imageobject._tags['image_filename'] = self.cdata
         return
+
+
+class FinishedReadingCreator(Exception):
+    """Class to indicate that creator object has been read"""
+
+class creatorobject_reader(xml_reader):
+    """Reads the <creator> section of a DFXML file"""
+    def __init__(self):
+        self.creatorobject = False
+        xml_reader.__init__(self)
+
+    def _start_element(self, name, attrs):
+        """ Handles the start of an element for the XPAT scanner"""
+        self.tagstack.append(name)
+        if name=="creator":
+            self.creatorobject = creatorobject_sax()
+            return
+        if self.creatorobject:
+            self.cdata = ""     # capture cdata for creatorobject
+
+    def _end_element(self, name):
+        """Handles the end of an eleement for the XPAT scanner"""
+        assert(self.tagstack.pop()==name)
+        if name=="creator":
+            self.callback(self.creatorobject)
+            self.creatorobject = None
+            raise FinishedReadingCreator("Done")
+        if self.tagstack[-1]=='creator' and self.creatorobject: # in the creator
+            self.creatorobject._tags[name] = self.cdata
+            self.cdata = None
+            return
 
 
 def combine_runs(runs):
@@ -1353,14 +1394,48 @@ class extentdb:
         return filter(lambda x:not self.intersects_sector(x),self.sectors_for_run(run))
 
 
-def read_dfxml(xmlfile=None,imagefile=None,flags=0,callback=None):
+def read_dfxml(xmlfile=None,imagefile=None,flags=0,callback=None,preserve_fis=False):
     """Processes an image using expat, calling a callback for every file object encountered.
     If xmlfile is provided, use that as the xmlfile, otherwise runs fiwalk."""
     if not callback:
         raise ValueError("callback must be specified")
     r = fileobject_reader(imagefile=imagefile,flags=flags)
-    r.process_xml_stream(xmlfile,callback)
+    r.process_xml_stream(xmlfile,callback,preserve_fis)
     return r
+
+def iter_dfxml(xmlfile, preserve_elements=False):
+    """Returns an interator that yields fileobjects from a DFXML file.
+    
+    @param preserve_elements
+    Yielded fileobjects can also retain the xml.etree.ElementTree.Element,
+    the fileobject's source XML as a manipulable object.
+    Pass preserve_elements=True to get fi.xml_element.
+    NOTE: Retaining Elements is quite memory-intensive.  Creating a MAC
+    timeline from DFXML of the "CFREDS Hacking" image (a 34MB XML file)
+    using demo_mac_timeline_iter.py maxed at 65MB of RAM without
+    preserve_elements, and about 650MB with.  
+    
+    This function might be extended in the future to call Fiwalk (and
+    thus become what fileobjects_iter was supposed to be)."""
+    import io
+    import xml.etree.ElementTree as ET
+    if not xmlfile:
+        raise ValueError("xmlfile must be specified")
+    for event, elem in ET.iterparse(xmlfile, ("start","end")):
+        if event == "end":
+            if elem.tag == "fileobject":
+                xmlstring = ET.tostring(elem)
+                pseudof = io.BytesIO()
+                pseudof.write(xmlstring)
+                pseudof.seek(0)
+                def temp_callback(fi):
+                    #TODO The volumeobject isn't populated this way; need to catch with iterparse.
+                    if preserve_elements:
+                        fi.xml_element = elem
+                reader = read_dfxml(pseudof, callback=temp_callback, preserve_fis=True)
+                yield reader.fi_history[0]
+                if not preserve_elements:
+                    elem.clear()
 
 def read_regxml(xmlfile=None,flags=0,callback=None):
     """Processes an image using expat, calling a callback for node encountered."""
@@ -1372,12 +1447,12 @@ def read_regxml(xmlfile=None,flags=0,callback=None):
     r = regxml_reader(flags=flags)
     try:
         r.process_xml_stream(xmlfile,callback)
-    except xml.parsers.expat.ExpatError:
+    except xml.parsers.expat.ExpatError as e:
         stderr.write("XML parsing error for file \"" + xmlfile.name + "\".  Object stack:\n")
         for x in r.objectstack:
             stderr.write(str(x) + "\n")
         stderr.write("(Done.)\n")
-        raise
+        raise e
     return r
 
 def fileobjects_sax(xmlfile=None,imagefile=None,flags=0):
@@ -1419,7 +1494,14 @@ def volumeobjects_sax(xmlfile=None,imagefile=None,flags=0):
     r.process_xml_stream(xmlfile,imagefile=None,callback=lambda vo:ret.append(vo))
     return ret
     
-        
+def creatorobjects_sax(xmlfile=None,flags=0):
+    r = creatorobject_reader()
+    ret = []
+    try:
+        r.process_xml_stream(xmlfile,callback=lambda vo:ret.append(vo))
+    except FinishedReadingCreator as e:
+        pass
+    return ret
         
 ################################################################
 if __name__=="__main__":
