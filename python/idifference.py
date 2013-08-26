@@ -215,7 +215,7 @@ class DiskState:
             #For files, use checksums and hard link check to confirm a renamed file
             else:
                 if ofi.sha1()==fi.sha1():
-                    ofnames = self.multilinks.get(inodes_key)
+                    ofnames = self.multilinks.get(inodes_key, [])
                     if fi.filename() in ofnames:
                         #The file was just hard-linked multiple times before
                         is_rename = False
