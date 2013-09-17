@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:dfxml="http://www.forensicswiki.org/wiki/Category:Digital_Forensics_XML"
+  xmlns:delta="http://www.forensicswiki.org/wiki/Forensic_Disk_Differencing"
+  targetNamespace="http://www.forensicswiki.org/wiki/Forensic_Disk_Differencing"
+  elementFormDefault="qualified">
+
+  <xs:import namespace="http://www.forensicswiki.org/wiki/Category:Digital_Forensics_XML" schemaLocation="../deps/dfxml_schema/dfxml.xsd"/>
+
+</xs:schema>

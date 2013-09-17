@@ -26,3 +26,18 @@ clean:
 	rm -f cat_test_{,no}cache.dfxml
 	rm -f idifference_test.txt
 	rm -f idifference_test{,_formatted}.dfxml
+
+check-validate: \
+  ../deps/dfxml_schema/dfxml.xsd \
+  ../schema/delta.xsd \
+  idifference_test_formatted.dfxml
+	xmllint --noout --schema ../schema/delta.xsd idifference_test_formatted.dfxml
+
+idifference_test_formatted.dfxml: test_idifference_to_dfxml.sh
+	./test_idifference_to_dfxml.sh
+
+../deps/dfxml_schema/dfxml.xsd:
+	pushd .. ; \
+	  git submodule init deps/dfxml_schema ; \
+	  git submodule update deps/dfxml_schema ; \
+	  popd
