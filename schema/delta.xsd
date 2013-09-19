@@ -8,4 +8,16 @@
 
   <xs:import namespace="http://www.forensicswiki.org/wiki/Category:Digital_Forensics_XML" schemaLocation="../deps/dfxml_schema/dfxml.xsd"/>
 
+  <xs:attribute name="changed_file" type="dfxml:bool01"/>
+
+  <xs:attribute name="changed_property" type="dfxml:bool01"/>
+
+  <xs:attribute name="deleted_file" type="dfxml:bool01"/>
+
+  <xs:attribute name="new_file" type="dfxml:bool01"/>
+
+  <xs:attribute name="renamed_file" type="dfxml:bool01"/>
+
+  <xs:element name="original_fileobject" type="dfxml:fileobject_type"/>
+
 </xs:schema>
