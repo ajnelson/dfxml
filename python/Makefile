@@ -32,6 +32,8 @@ check-validate: \
   ../schema/delta.xsd \
   idifference_test_formatted.dfxml
 	xmllint --noout --schema ../schema/delta.xsd idifference_test_formatted.dfxml
+	xmllint --noout --schema ../deps/dfxml_schema/dfxml.xsd idifference_test_formatted.dfxml
+#The second command fails unless the extension elements are laxly validated (processContents="lax" instead of "strict")
 
 idifference_test_formatted.dfxml: test_idifference_to_dfxml.sh
 	./test_idifference_to_dfxml.sh
