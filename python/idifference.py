@@ -14,6 +14,8 @@ Process:
 4. Replace the old maps with the new maps
 """
 
+__version__ = "1.0.0+counters"
+
 import sys,fiwalk,dfxml,time
 if sys.version_info < (3,1):
     raise RuntimeError("idifference.py now requires Python 3.1 or above")
