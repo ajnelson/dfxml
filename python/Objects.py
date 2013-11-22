@@ -121,6 +121,11 @@ class DFXMLObject(object):
             logging.debug("value = %r" % value)
             raise TypeError("Expecting a VolumeObject or a FileObject.  Got instead this type: %r." % type(value))
 
+    def iter_namespaces(self):
+        """Yields (prefix, url) pairs of each namespace registered in this DFXMLObject."""
+        for prefix in self._namespaces:
+            yield (prefix, self._namespaces[prefix])
+
     def populate_from_Element(self, e):
         if "version" in e.attrib:
             self.version = e.attrib["version"]
@@ -214,6 +219,10 @@ class DFXMLObject(object):
         if not value is None:
             assert isinstance(value, str)
         self._command_line = value
+
+    @property
+    def namespaces(self):
+        raise AttributeError("The namespaces dictionary should not be directly accessed; instead, use .iter_namespaces().")
 
     @property
     def sources(self):
@@ -318,7 +327,7 @@ class VolumeObject(object):
     def __init__(self, *args, **kwargs):
         self._files = []
         self._original_volume = None
-        self._diffs = None
+        self._diffs = set()
 
         for prop in VolumeObject._all_properties:
             if prop == "files":
@@ -363,7 +372,9 @@ class VolumeObject(object):
 
     def populate_from_Element(self, e):
         _typecheck(e, (ET.Element, ET.ElementTree))
-        logging.debug("e = %r" % e)
+        #logging.debug("e = %r" % e)
+
+        #TODO Read differential annotations
 
         #Split into namespace and tagname
         (ns, tn) = _qsplit(e.tag)
@@ -378,6 +389,9 @@ class VolumeObject(object):
             if ctn == "byte_runs":
                 self.byte_runs = ByteRuns()
                 self.byte_runs.populate_from_Element(ce)
+            elif ctn == "original_volume":
+                self.original_volume = VolumeObject()
+                self.original_volume.populate_from_Element(ce)
             elif ctn in VolumeObject._all_properties:
                 #logging.debug("ce.text = %r" % ce.text)
                 setattr(self, ctn, ce.text)
@@ -419,8 +433,33 @@ class VolumeObject(object):
         """Returns the volume element with its properties, except for the child fileobjects.  Properties are appended in DFXML schema order."""
         outel = ET.Element("volume")
 
+        if len(self.diffs) > 0:
+            outel.attrib["delta:modified_volume"] = "1"
+
         if self.byte_runs:
             outel.append(self.byte_runs.to_Element())
+
+        def _append_el(prop, value):
+            tmpel = ET.Element(prop)
+            _keep = False
+            if not value is None:
+                tmpel.text = str(value)
+                _keep = True
+            if prop in self.diffs:
+                tmpel.attrib["delta:changed_property"] = "1"
+                _keep = True
+            if _keep:
+                outel.append(tmpel)
+
+        def _append_str(prop):
+            value = getattr(self, prop)
+            _append_el(prop, value)
+
+        def _append_bool(prop):
+            value = getattr(self, prop)
+            if not value is None:
+                value = "1" if value else "0"
+            _append_el(prop, value)
 
         for prop in [
           "partition_offset",
@@ -432,15 +471,16 @@ class VolumeObject(object):
           "first_block",
           "last_block"
         ]:
-            value = getattr(self, prop)
-            if not value is None:
-                tmpel = ET.Element(prop)
-                tmpel.text = str(value)
-                outel.append(tmpel)
+            _append_str(prop)
 
-        if not self.allocated_only is None:
-            tmpel = ET.Element("allocated_only")
-            tmpel.text = "1" if self.allocated_only else "0"
+        #Output the one Boolean property
+        _append_bool("allocated_only")
+
+        #Output the original volume's properties
+        if not self.original_volume is None:
+            #Skip FileObject list, if any
+            tmpel = self.original_volume.to_partial_Element()
+            tmpel.tag = "delta:original_volume"
             outel.append(tmpel)
 
         return outel
@@ -1025,10 +1065,10 @@ class FileObject(object):
         _d = { FileObject._diff_attr_names[k].replace("delta:",""):k for k in FileObject._diff_attr_names }
         #logging.debug("Inverted dictionary: _d = %r" % _d)
         for attr in e.attrib:
-            logging.debug("Looking for differential annotations: %r" % e.attrib)
+            #logging.debug("Looking for differential annotations: %r" % e.attrib)
             (ns, an) = _qsplit(attr)
             if an in _d and ns == dfxml.XMLNS_DELTA:
-                logging.debug("Found; adding _d[an]=%r." % _d[an])
+                #logging.debug("Found; adding _d[an]=%r." % _d[an])
                 self.diffs.add(_d[an])
 
         #Look through direct-child elements for other properties
@@ -1192,7 +1232,7 @@ class FileObject(object):
         """Note that setting .alloc will affect the value of .unalloc, and vice versa.  The last one to set wins."""
         global _nagged_alloc
         if not _nagged_alloc:
-            logging.warning("The FileObject.alloc property is deprecated.  Use .alloc_inode or .alloc_name instead.  .alloc is proxied as True if and only if alloc_inode and alloc_name are both True.")
+            logging.warning("The FileObject.alloc property is deprecated.  Use .alloc_inode or .alloc_name instead.  .alloc is proxied as True if alloc_inode and alloc_name are both True.")
             _nagged_alloc = True
         if self.alloc_inode and self.alloc_name:
             return True
@@ -1718,7 +1758,7 @@ def objects_from_file(filename, dfxmlobject=None):
     Currently only accepts filenames ending in "xml".  Will accept disk image files in the future.
 
     @param filename: A string
-    @param dfxmlobject: A DFXMLObject document.  Use this to track namespaces encountered in the input file.
+    @param dfxmlobject: A DFXMLObject document.  Optional.  A DFXMLObject is created and yielded in the object stream if this argument is not supplied.
     """
 
     if not filename.endswith("xml"):
@@ -1726,8 +1766,10 @@ def objects_from_file(filename, dfxmlobject=None):
 
     fh = open(filename, "rb")
 
+    dobj = dfxmlobject or DFXMLObject()
+
     #The only way to efficiently populated VolumeObjects is to populate the object when the stream has hit its first FileObject.
-    vo = None
+    vobj = None
 
     #It doesn't seem ElementTree allows fetching parents of Elements that are incomplete (just hit the "start" event).  So, build a volume Element when we've hit "<volume ... >", glomming all elements until the first fileobject is hit.
     #Likewise with the Element for the DFXMLObject.
@@ -1742,18 +1784,12 @@ def objects_from_file(filename, dfxmlobject=None):
     READING_POSTSTREAM = 4 #DFXML metadata, post-Object stream (typically the <rusage> element)
     _state = READING_START
 
-    def _populate_DFXMLObject():
-        dobj = DFXMLObject()
-        dobj.populate_from_Element(dfxml_proxy)
-        return dobj
-
     for (event, elem) in ET.iterparse(fh, events=("start-ns", "start", "end")):
         #logging.debug("(event, elem) = (%r, %r)" % (event, elem))
 
         #Track namespaces
         if event == "start-ns":
-            if not dfxmlobject is None:
-                dfxmlobject.add_namespace(*elem)
+            dobj.add_namespace(*elem)
             continue
 
         #Split tag name into namespace and local name
@@ -1771,25 +1807,25 @@ def objects_from_file(filename, dfxmlobject=None):
             elif ln == "volume":
                 if _state == READING_PRESTREAM:
                     #Cut; yield DFXMLObject now.
-                    dobj = _populate_DFXMLObject()
+                    dobj.populate_from_Element(dfxml_proxy)
                     yield dobj
-                else:
-                    #Start populating a new Volume proxy.
-                    volume_proxy = ET.Element(elem.tag)
-                    for k in elem.attrib:
-                        volume_proxy.attrib[k] = elem.attrib[k] 
+                #Start populating a new Volume proxy.
+                volume_proxy = ET.Element(elem.tag)
+                for k in elem.attrib:
+                    volume_proxy.attrib[k] = elem.attrib[k] 
                 _state = READING_VOLUMES
             elif ln == "fileobject":
                 if _state == READING_PRESTREAM:
                     #Cut; yield DFXMLObject now.
-                    dobj = _populate_DFXMLObject()
+                    dobj.populate_from_Element(dfxml_proxy)
                     yield dobj
                 elif _state == READING_VOLUMES:
+                    logging.debug("Encountered a fileobject while reading volume properties.  Yielding volume now.")
                     #Cut; yield VolumeObject now.
                     if volume_proxy is not None:
-                        vo = VolumeObject()
-                        vo.populate_from_Element(volume_proxy)
-                        yield vo
+                        vobj = VolumeObject()
+                        vobj.populate_from_Element(volume_proxy)
+                        yield vobj
                         #Reset
                         volume_proxy = None
                         elem.clear()
@@ -1799,10 +1835,10 @@ def objects_from_file(filename, dfxmlobject=None):
                 if _state in (READING_PRESTREAM, READING_POSTSTREAM):
                     #This particular branch can be reached if there are trailing fileobject elements after the volume element.  This would happen if a tool needed to represent files (likely reassembled fragments) found outside all the partitions.
                     #More frequently, we hit this point when there are no volume groupings.
-                    vo = None
+                    vobj = None
                 fi = FileObject()
                 fi.populate_from_Element(elem)
-                fi.volume_object = vo
+                fi.volume_object = vobj
                 #logging.debug("fi = %r" % fi)
                 yield fi
                 #Reset

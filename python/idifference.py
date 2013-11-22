@@ -126,10 +126,14 @@ class DiskState:
         self.current_fname = None # This class field is the name of the current disk image, whereas other fnames are in-image file names
         self.new_fnames = dict() # maps from fname -> fi
         self.new_inodes = dict() # maps from (partition, inode_number) -> fi
+        self.new_unallocated_fis = []
         self.new_fi_tally = 0
+        self.new_analyzed_fi_tally = 0
         self.notimeline = notimeline
         self.summary = summary
         self.include_dotdirs = include_dotdirs
+        self.new_allocation_inode_tallies = {True:0, False:0, None:0}
+        self.new_allocation_name_tallies = {True:0, False:0, None:0}
         self.changed_mtime_tally = 0
         self.changed_atime_tally = 0
         self.changed_ctime_tally = 0
@@ -146,19 +150,27 @@ class DiskState:
         self.fnames = self.new_fnames
         self.inodes = self.new_inodes
         self.fi_tally = self.new_fi_tally
+        self.analyzed_fi_tally = 0
         self.new_fnames = dict()
         self.new_inodes = dict()
+        self.unallocated_fis = self.new_unallocated_fis
+        self.allocation_inode_tallies = self.new_allocation_inode_tallies
+        self.allocation_name_tallies = self.new_allocation_name_tallies
         #Reset sets
         self.new_files          = set()     # set of file objects
         self.renamed_files      = set()     # set of (oldfile,newfile) file objects
         self.changed_content    = set()     # set of (oldfile,newfile) file objects
         self.changed_properties = set()     # list of (oldfile,newfile) file objects
+        self.new_unallocated_fis = []
         #Reset counters
         self.new_fi_tally = 0
         if self.notimeline:
             self.timeline = None
         else:
             self.timeline = set()
+        self.new_analyzed_fi_tally = 0
+        self.new_allocation_inode_tallies = {True:0, False:0, None:0}
+        self.new_allocation_name_tallies = {True:0, False:0, None:0}
         self.changed_mtime_tally = 0
         self.changed_atime_tally = 0
         self.changed_ctime_tally = 0
@@ -172,9 +184,14 @@ class DiskState:
         global options
         dprint("processing %s" % str(fi))
         
+        #Count granular allocations
+        self.new_allocation_inode_tallies[fi.allocated_inode()] += 1
+        self.new_allocation_name_tallies[fi.allocated_name()] += 1
+
         # See if the filename changed its hash code
         changed = False
         if not fi.allocated():
+            self.new_unallocated_fis.append(fi)
             return # only look at allocated files
 
         # Filter out specific filenames create by TSK that are not of use
@@ -468,8 +485,26 @@ class DiskState:
             h2("Summary:")
             table([
               ("Prior image's file (file object) tally", str(self.fi_tally)),
+              ("  Inode allocation", ""),
+              ("    Allocated", str(self.allocation_inode_tallies[True])),
+              ("    Unallocated", str(self.allocation_inode_tallies[False])),
+              ("    Unknown", str(self.allocation_inode_tallies[None])),
+              ("  Name allocation", ""),
+              ("    Allocated", str(self.allocation_name_tallies[True])),
+              ("    Unallocated", str(self.allocation_name_tallies[False])),
+              ("    Unknown", str(self.allocation_name_tallies[None])),
+              ("  Unallocated, unmatched", str(len(self.unallocated_fis))),
               ("Prior image's file (inode) tally", str(len(self.inodes))),
               ("Current image's file (file object) tally", str(self.new_fi_tally)),
+              ("  Inode allocation", ""),
+              ("    Allocated", str(self.new_allocation_inode_tallies[True])),
+              ("    Unallocated", str(self.new_allocation_inode_tallies[False])),
+              ("    Unknown", str(self.new_allocation_inode_tallies[None])),
+              ("  Name allocation", ""),
+              ("    Allocated", str(self.new_allocation_name_tallies[True])),
+              ("    Unallocated", str(self.new_allocation_name_tallies[False])),
+              ("    Unknown", str(self.new_allocation_name_tallies[None])),
+              ("  Unallocated, unmatched", str(len(self.new_unallocated_fis))),
               ("Current image's file (inode) tally", str(len(self.new_inodes))),
               ("New files", str(len(self.new_files))),
               ("Deleted files", str(len(self.fnames))),
