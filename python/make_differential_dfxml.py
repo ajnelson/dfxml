@@ -309,13 +309,13 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False):
             nfi = Objects.FileObject()
             nfi.original_fileobject = ofi
             nfi.diffs.add("_deleted")
-            appenders[ofi.partition].append(fi)
+            appenders[ofi.partition].append(nfi)
         for key in old_fis_unalloc:
             for ofi in old_fis_unalloc[key]:
                 nfi = Objects.FileObject()
                 nfi.original_fileobject = ofi
                 nfi.diffs.add("_deleted")
-                appenders[ofi.partition].append(fi)
+                appenders[ofi.partition].append(nfi)
         for fi in fileobjects_renamed:
             fi.diffs.add("_renamed")
             appenders[fi.partition].append(fi)
