@@ -7,14 +7,21 @@ Consider this file highly experimental (read: unstable).
 
 __version__ = "0.0.23"
 
+#Roadmap to 0.1.0:
+# * Use Object.annos instead of underscore-prefixed Object.diffs
+
 import logging
 import re
 import copy
 import xml.etree.ElementTree as ET
+import subprocess
 import dfxml
 
 #For memoization
 import functools
+
+#Contains: (namespace, local name) qualified XML element name pairs
+_warned_elements = set([])
 
 _nagged_alloc = False
 
@@ -34,6 +41,14 @@ def _boolcast(val):
 
     logging.debug("val = " + repr(val))
     raise ValueError("Received a not-straightforwardly-Boolean value.  Expected some form of 0, 1, True, or False.")
+
+def _bytecast(val):
+    """Casts a value as a byte string.  If a character string, assumes a UTF-8 encoding."""
+    if val is None:
+        return None
+    if isinstance(val, bytes):
+        return val
+    return _strcast(val).encode("utf-8")
 
 def _intcast(val):
     """Casts input integer or string to integer.  Preserves nulls.  Balks at everything else."""
@@ -371,6 +386,7 @@ class VolumeObject(object):
         return diffs
 
     def populate_from_Element(self, e):
+        global _warned_elements
         _typecheck(e, (ET.Element, ET.ElementTree))
         #logging.debug("e = %r" % e)
 
@@ -397,7 +413,9 @@ class VolumeObject(object):
                 setattr(self, ctn, ce.text)
                 #logging.debug("getattr(self, %r) = %r" % (ctn, getattr(self, ctn)))
             else:
-                raise ValueError("Unsure what to do with this element in a VolumeObject: %r" % ce)
+                if (cns, ctn) not in _warned_elements:
+                    _warned_elements.add((cns, ctn))
+                    logging.warning("Unsure what to do with this element in a VolumeObject: %r" % ce)
 
     def print_dfxml(self):
         pe = self.to_partial_Element()
@@ -596,6 +614,7 @@ class ByteRun(object):
       "img_offset",
       "fs_offset",
       "file_offset",
+      "fill",
       "len"
     ])
 
@@ -614,6 +633,7 @@ class ByteRun(object):
           self.img_offset == other.img_offset and \
           self.fs_offset == other.fs_offset and \
           self.file_offset == other.file_offset and \
+          self.fill == other.fill and \
           self.len == other.len
 
     def __ne__(self, other):
@@ -655,6 +675,15 @@ class ByteRun(object):
     @file_offset.setter
     def file_offset(self, val):
         self._file_offset = _intcast(val)
+
+    @property
+    def fill(self):
+        """There is an implicit assumption that the fill character is encoded as UTF-8."""
+        return self._fill
+
+    @fill.setter
+    def fill(self, val):
+        self._fill = _bytecast(val)
 
     @property
     def fs_offset(self):
@@ -751,10 +780,91 @@ class ByteRuns(list):
         assert isinstance(value, ByteRun)
         self._listdata.append(value)
 
-    def contents(self, raw_image):
-        """Generator.  Yields contents, given a backing raw image path."""
-        assert not raw_image is None
-        raise Exception("Not implemented yet.")
+    def iter_contents(self, raw_image, buffer_size=1048576, sector_size=512, errlog=None, statlog=None):
+        """
+        Generator.  Yields contents, as byte strings one block at a time, given a backing raw image path.  Relies on The SleuthKit's img_cat, so contents can be extracted from any disk image type that TSK supports.
+        @param buffer_size The maximum size of the byte strings yielded.
+        @param sector_size The size of a disk sector in the raw image.  Required by img_cat.
+        """
+        if not isinstance(raw_image, str):
+            raise TypeError("iter_contents needs the string path to the image file.  Received: %r." % raw_image)
+
+        stderr_fh = None
+        if not errlog is None:
+            stderr_fh = open(errlog, "wb")
+
+        status_fh = None
+        if not statlog is None:
+            status_fh = open(errlog, "wb")
+
+        #The exit status of the last img_cat.
+        last_status = None
+
+        try:
+            for run in self:
+                if run.len is None:
+                    raise AttributeError("Byte runs can't be extracted if a run length is undefined.")
+
+                len_to_read = run.len
+
+                #If we have a fill character, just pump out that character
+                if not run.fill is None and len(run.fill) > 0:
+                    while len_to_read > 0:
+                        #This multiplication and slice should handle multi-byte fill characters, in case that ever comes up.
+                        yield (run.fill * buffer_size)[:len_to_read]
+                        len_to_read -= buffer_size
+                    #Next byte run
+                    continue
+
+                if run.img_offset is None:
+                    raise AttributeError("Byte runs can't be extracted if missing a fill character and image offset.")
+
+                cmd = ["img_cat"]
+                cmd.append("-b")
+                cmd.append(str(sector_size))
+                cmd.append("-s")
+                cmd.append(str(run.img_offset//sector_size))
+                cmd.append("-e")
+                cmd.append(str( (run.img_offset + run.len)//sector_size))
+                cmd.append(raw_image)
+                p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=stderr_fh)
+
+                #Do the buffered read
+                while len_to_read > 0:
+                    buffer_data = p.stdout.read(buffer_size)
+                    yield_data = buffer_data[ : min(len_to_read, buffer_size)]
+                    if len(yield_data) > 0:
+                        yield yield_data
+                    else:
+                        #Let the subprocess terminate so we can see the exit status
+                        p.wait()
+                        last_status = p.returncode
+                        if last_status != 0:
+                            e = subprocess.CalledProcessError("img_cat failed.")
+                            e.returncode = last_status
+                            e.cmd = cmd
+                            raise e
+                    len_to_read -= buffer_size
+        except Exception as e:
+            #Cleanup in an exception
+            if not stderr_fh is None:
+                stderr_fh.close()
+
+            if not status_fh is None:
+                if isinstance(e, subprocess.CalledProcessError):
+                    status_fh.write(e.returncode)
+                else:
+                    status_fh.write("1")
+                status_fh.close()
+            raise e
+
+        #Cleanup when all's gone well.
+        if not status_fh is None:
+            if not last_status is None:
+                status_fh.write(last_status)
+            status_fh.close()
+        if not stderr_fh is None:
+            stderr_fh.close()
 
     def populate_from_Element(self, e):
         assert isinstance(e, ET.Element) or isinstance(e, ET.ElementTree)
@@ -1052,6 +1162,7 @@ class FileObject(object):
 
     def populate_from_Element(self, e):
         """Populates this FileObject's properties from an ElementTree Element.  The Element need not be retained."""
+        global _warned_elements
         _typecheck(e, (ET.Element, ET.ElementTree))
 
         #logging.debug("FileObject.populate_from_Element(%r)" % e)
@@ -1098,7 +1209,9 @@ class FileObject(object):
             elif ctn in FileObject._all_properties:
                 setattr(self, ctn, ce.text)
             else:
-                raise ValueError("Uncertain what to do with this element: %r" % ce)
+                if (cns, ctn) not in _warned_elements:
+                    _warned_elements.add((cns, ctn))
+                    logging.warning("Uncertain what to do with this element: %r" % ce)
 
     def populate_from_stat(self, s):
         """Populates FileObject fields from a stat() call."""
@@ -1577,6 +1690,7 @@ class CellObject(object):
 
     def populate_from_Element(self, e):
         """Populates this CellObject's properties from an ElementTree Element.  The Element need not be retained."""
+        global _warned_elements
         assert isinstance(e, ET.Element) or isinstance(e, ET.ElementTree)
 
         #Split into namespace and tagname
@@ -1609,7 +1723,9 @@ class CellObject(object):
                 self.parent_object = CellObject()
                 self.parent_object.populate_from_Element(ce)
             else:
-                raise ValueError("Uncertain what to do with this element: %r" % ce)
+                if (cns, ctn) not in _warned_elements:
+                    _warned_elements.add((cns, ctn))
+                    logging.warning("Uncertain what to do with this element: %r" % ce)
 
         self.sanity_check()
 
@@ -1762,10 +1878,15 @@ def iterparse(filename, events=("start","end"), dfxmlobject=None):
     @param dfxmlobject: A DFXMLObject document.  Optional.  A DFXMLObject is created and yielded in the object stream if this argument is not supplied.
     """
 
-    if not filename.endswith("xml"):
-        raise NotImplementedError("This only works on DFXML files at the moment.")
-
-    fh = open(filename, "rb")
+    #The DFXML stream file handle.
+    fh = None
+    subp = None
+    subp_command = ["fiwalk", "-x", filename]
+    if filename.endswith("xml"):
+        fh = open(filename, "rb")
+    else:
+        subp = subprocess.Popen(subp_command, stdout=subprocess.PIPE)
+        fh = subp.stdout
 
     _events = set()
     for e in events:
@@ -1870,6 +1991,16 @@ def iterparse(filename, events=("start","end"), dfxmlobject=None):
                     #This is a direct child of the DFXML document property; glom onto the proxy.
                     if dfxml_proxy is not None:
                         dfxml_proxy.append(elem)
+
+    #If we called Fiwalk, double-check that it exited successfully.
+    if not subp is None:
+        logging.debug("Calling wait() to let the Fiwalk subprocess terminate...") #Just reading from subp.stdout doesn't let the process terminate; it only finishes working.
+        subp.wait()
+        if subp.returncode != 0:
+            e = subprocess.CalledProcessError("There was an error running Fiwalk.")
+            e.returncode = subp.returncode
+            e.cmd = subp_command
+            raise e
 
 if __name__ == "__main__":
     import argparse
