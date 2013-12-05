@@ -9,7 +9,7 @@ Produces a differential DFXML file as output.
 This program's main purpose is matching files correctly.  It only performs enough analysis to determine that a fileobject has changed at all.  (This is half of the work done by idifference.py.)
 """
 
-__version__ = "0.3.1"
+__version__ = "0.3.2"
 
 import Objects
 import logging
@@ -229,8 +229,8 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False):
         #We may be able to match files that aren't allocated against files we think are deleted
         logging.debug("Detecting modifications from unallocated files...")
         fileobjects_deleted = []
-        for key in new_fis_unalloc.keys():
-            #1 partition, 1 inode number, 1 name, repeated:  Too ambiguous to compare.
+        for key in new_fis_unalloc:
+            #1 partition; 1 inode number; 1 name, repeated:  Too ambiguous to compare.
             if len(new_fis_unalloc[key]) != 1:
                 continue
 
@@ -259,31 +259,10 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False):
         logging.debug("len(fileobjects_changed) -> %d" % len(fileobjects_changed))
         logging.debug("len(fileobjects_deleted) -> %d" % len(fileobjects_deleted))
 
-        #_After_ deletion matching is performed, look for files migrating to other partitions.
-        #This is because the act of moving a file between partitions performs a deletion in the originating volume.
-        logging.debug("Detecting files migrating between partitions...")
-        def _make_partition_map(d):
-            #Key: Filename
-            #Value: (partition, inode, name) key of old_fis and new_fis (for lookups)
-            retdict = dict()
-            for key in d:
-                (partition, inode, name) = key
-                if not partition is None:
-                    retdict[name] = key
-            return retdict
-        old_name_partitions = _make_partition_map(old_fis)
-        new_name_partitions = _make_partition_map(new_fis)
-        for name in new_name_partitions:
-            if name in old_name_partitions:
-                if new_name_partitions[name][0] == old_name_partitions[name][0]:
-                    old_obj = old_fis.pop(old_name_partitions[name])
-                    new_obj = new_fis.pop(new_name_partitions[name])
-                    new_obj.original_fileobject = old_obj
-                    new_obj.compare_to_original()
-                    fileobjects_changed.append(new_obj)
-        logging.debug("len(old_fis) -> %d" % len(old_fis))
-        logging.debug("len(new_fis) -> %d" % len(new_fis))
-        logging.debug("len(fileobjects_changed) -> %d" % len(fileobjects_changed))
+        #After deletion matching is performed, one might want to look for files migrating to other partitions.
+        #However, since between-volume migration creates a new deleted file, this algorithm instead ignores partition migrations.
+
+        #Begin output.
 
         #Key: Partition number, or None
         #Value: Reference to the VolumeObject corresponding with that partition number.  None -> the DFXMLObject.
@@ -345,6 +324,8 @@ if __name__ == "__main__":
     parser.add_argument("--retain-unchanged", action="store_true", help="Output unchanged files in the resulting DFXML file.", default=False)
     parser.add_argument("infiles", nargs="+")
     args = parser.parse_args()
+
+    #TODO Add -i,--ignore: Ignore a particular element if it differs.  nargs="+".  Necessary for comparisons of directories from different systems.
 
     logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
 
