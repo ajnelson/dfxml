@@ -9,7 +9,7 @@ Produces a differential DFXML file as output.
 This program's main purpose is matching files correctly.  It only performs enough analysis to determine that a fileobject has changed at all.  (This is half of the work done by idifference.py.)
 """
 
-__version__ = "0.2.1"
+__version__ = "0.3.1"
 
 import Objects
 import logging
@@ -72,7 +72,7 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False):
 
         d.sources.append(infile)
 
-        for (i, new_obj) in enumerate(Objects.objects_from_file(infile)):
+        for (i, (event, new_obj)) in enumerate(Objects.iterparse(infile)):
             if isinstance(new_obj, Objects.DFXMLObject):
                 #Inherit desired properties from the source DFXMLObject.
 
@@ -82,6 +82,10 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False):
 
                 continue
             elif isinstance(new_obj, Objects.VolumeObject):
+                if event == "end":
+                    #This algorithm doesn't yet need to know when a volume is concluded.  On to the next object.
+                    continue
+
                 offset = new_obj.partition_offset
                 if offset in volumes_by_offset:
                     logging.debug("Found a volume again, at offset %r." % offset)

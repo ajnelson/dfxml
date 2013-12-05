@@ -5,7 +5,7 @@ This file re-creates the major DFXML classes with an emphasis on type safety, se
 Consider this file highly experimental (read: unstable).
 """
 
-__version__ = "0.0.16"
+__version__ = "0.0.23"
 
 import logging
 import re
@@ -1751,13 +1751,14 @@ class CellObject(object):
         self._root = _boolcast(val)
 
 
-def objects_from_file(filename, dfxmlobject=None):
+def iterparse(filename, events=("start","end"), dfxmlobject=None):
     """
-    Generator.  Yields a stream of populated VolumeObjects and FileObjects.
+    Generator.  Yields a stream of populated DFXMLObjects, VolumeObjects and FileObjects, paired with an event type ("start" or "end").  The DFXMLObject and VolumeObjects do NOT have their child lists populated with this method - that is left to the calling program.
 
-    Currently only accepts filenames ending in "xml".  Will accept disk image files in the future.
+    The event type interface is meant to match the interface of ElementTree's iterparse; this is simply for familiarity's sake.  DFXMLObjects and VolumeObjects are yielded with "start" when the stream of VolumeObject or FileObjects begins - that is, they are yielded after being fully constructed up to the potentially-lengthy child object stream.  FileObjects are yielded only with "end".
 
     @param filename: A string
+    @param events: Events.  Optional.  A tuple of strings, containing "start" and/or "end".
     @param dfxmlobject: A DFXMLObject document.  Optional.  A DFXMLObject is created and yielded in the object stream if this argument is not supplied.
     """
 
@@ -1765,6 +1766,12 @@ def objects_from_file(filename, dfxmlobject=None):
         raise NotImplementedError("This only works on DFXML files at the moment.")
 
     fh = open(filename, "rb")
+
+    _events = set()
+    for e in events:
+        if not e in ("start","end"):
+            raise ValueError("Unexpected event type: %r.  Expecting 'start', 'end'." % e)
+        _events.add(e)
 
     dobj = dfxmlobject or DFXMLObject()
 
@@ -1784,18 +1791,18 @@ def objects_from_file(filename, dfxmlobject=None):
     READING_POSTSTREAM = 4 #DFXML metadata, post-Object stream (typically the <rusage> element)
     _state = READING_START
 
-    for (event, elem) in ET.iterparse(fh, events=("start-ns", "start", "end")):
-        #logging.debug("(event, elem) = (%r, %r)" % (event, elem))
+    for (ETevent, elem) in ET.iterparse(fh, events=("start-ns", "start", "end")):
+        #logging.debug("(event, elem) = (%r, %r)" % (ETevent, elem))
 
         #Track namespaces
-        if event == "start-ns":
+        if ETevent == "start-ns":
             dobj.add_namespace(*elem)
             continue
 
         #Split tag name into namespace and local name
         (ns, ln) = _qsplit(elem.tag)
 
-        if event == "start":
+        if ETevent == "start":
             if ln == "dfxml":
                 if _state != READING_START:
                     raise ValueError("Encountered a <dfxml> element, but the parser isn't in its start state.  Recursive <dfxml> declarations aren't supported at this time.")
@@ -1808,7 +1815,8 @@ def objects_from_file(filename, dfxmlobject=None):
                 if _state == READING_PRESTREAM:
                     #Cut; yield DFXMLObject now.
                     dobj.populate_from_Element(dfxml_proxy)
-                    yield dobj
+                    if "start" in _events:
+                        yield ("start", dobj)
                 #Start populating a new Volume proxy.
                 volume_proxy = ET.Element(elem.tag)
                 for k in elem.attrib:
@@ -1818,19 +1826,21 @@ def objects_from_file(filename, dfxmlobject=None):
                 if _state == READING_PRESTREAM:
                     #Cut; yield DFXMLObject now.
                     dobj.populate_from_Element(dfxml_proxy)
-                    yield dobj
+                    if "start" in _events:
+                        yield ("start", dobj)
                 elif _state == READING_VOLUMES:
                     logging.debug("Encountered a fileobject while reading volume properties.  Yielding volume now.")
                     #Cut; yield VolumeObject now.
                     if volume_proxy is not None:
                         vobj = VolumeObject()
                         vobj.populate_from_Element(volume_proxy)
-                        yield vobj
+                        if "start" in _events:
+                            yield ("start", vobj)
                         #Reset
                         volume_proxy = None
                         elem.clear()
                 _state = READING_FILES
-        elif event == "end":
+        elif ETevent == "end":
             if ln == "fileobject":
                 if _state in (READING_PRESTREAM, READING_POSTSTREAM):
                     #This particular branch can be reached if there are trailing fileobject elements after the volume element.  This would happen if a tool needed to represent files (likely reassembled fragments) found outside all the partitions.
@@ -1840,10 +1850,16 @@ def objects_from_file(filename, dfxmlobject=None):
                 fi.populate_from_Element(elem)
                 fi.volume_object = vobj
                 #logging.debug("fi = %r" % fi)
-                yield fi
+                if "end" in _events:
+                    yield ("end", fi)
                 #Reset
                 elem.clear()
+            elif elem.tag == "dfxml":
+                if "end" in _events:
+                    yield ("end", dobj)
             elif elem.tag == "volume":
+                if "end" in _events:
+                    yield ("end", vobj)
                 _state = READING_POSTSTREAM
             elif _state == READING_VOLUMES:
                 #This is a volume property; glom onto the proxy.

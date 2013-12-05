@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-__version__ = "0.1.0"
+__version__ = "0.1.2"
 
 import os
 import logging
@@ -79,7 +79,7 @@ def main():
 
     obj_alloc_counters = [FOCounter(), FOCounter()]
 
-    for obj in Objects.objects_from_file(args.infile):
+    for (event, obj) in Objects.iterparse(args.infile):
         if isinstance(obj, Objects.FileObject):
             #logging.debug("Inspecting %s for changes" % obj)
             if "_new" in obj.diffs:
@@ -102,6 +102,9 @@ def main():
             #TODO
             pass
         elif isinstance(obj, Objects.DFXMLObject):
+            #Nothing happens with this DFXMLObject after the start.
+            if event != "start":
+                continue
             for source in obj.sources:
                 logging.debug("Adding to inspection queue: Source file %r." % source)
                 original_dfxml_files.append(source)
@@ -110,7 +113,7 @@ def main():
     file_alloc_counters = []
     for (num, path) in enumerate(original_dfxml_files):
         file_alloc_counters.append(FOCounter())
-        for obj in Objects.objects_from_file(path):
+        for (event, obj) in Objects.iterparse(path):
             if not isinstance(obj, Objects.FileObject):
                 continue
             file_alloc_counters[num].add(obj)
