@@ -55,11 +55,11 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False):
     old_fis_unalloc = None
     new_fis_unalloc = None
 
-    #Key: Partition byte offset within the disk image
+    #Key: Partition byte offset within the disk image, paired with the file system type
     #Value: VolumeObject
-    volumes_by_offset = dict()
-    #Populated in distinct-offset encounter order
-    volumes_offset_encounter_order = dict()
+    volumes = dict()
+    #Populated in distinct (offset, file system type as string) encounter order
+    volumes_encounter_order = dict()
 
     for infile in [pre, post]:
 
@@ -87,23 +87,26 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False):
                     continue
 
                 offset = new_obj.partition_offset
-                if offset in volumes_by_offset:
+                ftype_str = new_obj.ftype_str
+                if (offset, ftype_str) in volumes:
                     logging.debug("Found a volume again, at offset %r." % offset)
-                    if i == 0:
+                    if infile == pre:
                         logging.debug("new_obj.partition_offset = %r." % offset)
                         logging.warning("Encountered a volume that starts at an offset as another volume, in the same disk image.  This analysis is based on the assumption that that doesn't happen.  Check results that depend on partition mappings.")
                     else:
                         #New volume; compare
                         logging.debug("Found a volume in post image, at offset %r." % offset)
-                        volumes_by_offset[offset].original_volume = new_obj
-                        volumes_by_offset[offset].compare_to_original()
-                        if len(volumes_by_offset[offset].diffs) > 0:
-                            volumes_by_offset[offset].diffs.add("_modified")
+                        old_obj = volumes[(offset, ftype_str)]
+                        new_obj.original_volume = old_obj
+                        new_obj.compare_to_original()
+                        if len(new_obj.diffs) > 0:
+                            new_obj.diffs.add("_modified")
+                        volumes[(offset, ftype_str)] = new_obj
                 else:
                     logging.debug("Found a new volume, at offset %r." % offset)
                     new_obj.diffs.add("_new")
-                    volumes_by_offset[offset] = new_obj
-                    volumes_offset_encounter_order[offset] = len(volumes_by_offset)
+                    volumes[(offset, ftype_str)] = new_obj
+                    volumes_encounter_order[(offset, new_obj.ftype_str)] = len(volumes)
                 continue
             elif not isinstance(new_obj, Objects.FileObject):
                 #The rest of this loop compares only file objects.
@@ -116,8 +119,8 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False):
             if new_obj.volume_object is None:
                 new_obj.partition = None
             else:
-                po = new_obj.volume_object.partition_offset
-                new_obj.partition = volumes_offset_encounter_order[po]
+                vo = new_obj.volume_object
+                new_obj.partition = volumes_encounter_order[(vo.partition_offset, vo.ftype_str)]
 
             key = (new_obj.partition, new_obj.inode, new_obj.filename)
 
@@ -261,18 +264,21 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False):
 
         #After deletion matching is performed, one might want to look for files migrating to other partitions.
         #However, since between-volume migration creates a new deleted file, this algorithm instead ignores partition migrations.
+        #AJN TODO Thinking about it a little more, I can't suss out a reason against trying this match.  It's complicated if we try looking for reallocations in new_fis, strictly from new_fis_unalloc.
+
+        #TODO We might also want to match the unallocated objects based on metadata addresses.  Unfortunately, that requires implementation of additional byte runs, which hasn't been fully designed yet in the DFXML schema.
 
         #Begin output.
 
         #Key: Partition number, or None
         #Value: Reference to the VolumeObject corresponding with that partition number.  None -> the DFXMLObject.
         appenders = dict()
-        for offset in volumes_offset_encounter_order:
-            appenders[volumes_offset_encounter_order[offset]] = volumes_by_offset[offset]
+        for (offset, ftype_str) in volumes_encounter_order:
+            appenders[volumes_encounter_order[(offset, ftype_str)]] = volumes[(offset, ftype_str)]
         appenders[None] = d
 
-        for voffset in sorted(volumes_by_offset.keys()):
-            d.append(volumes_by_offset[voffset])
+        for (voffset, vftype_str) in sorted(volumes.keys()):
+            d.append(volumes[(voffset, vftype_str)])
 
         #Populate DFXMLObject.
         for key in new_fis:
@@ -326,6 +332,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     #TODO Add -i,--ignore: Ignore a particular element if it differs.  nargs="+".  Necessary for comparisons of directories from different systems.
+    #TODO Allow --ignore to ignore ftype_str, to compare only file system offsets for partitions
+    #TODO Allow --ignore to ignore .inode and/or .partition, to match strictly on names.
 
     logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
 
