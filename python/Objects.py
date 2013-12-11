@@ -462,6 +462,8 @@ class VolumeObject(object):
         outel = ET.Element("volume")
 
         if len(self.diffs) > 0:
+            #TODO The diffs appear to be attaching to the wrong object.  It seems to be time to use .annos as well.
+            _logger.debug("self.diffs = %s." % repr(self.diffs))
             outel.attrib["delta:modified_volume"] = "1"
 
         if self.byte_runs:
