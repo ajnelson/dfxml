@@ -114,6 +114,10 @@ class DFXMLObject(object):
         for f in input_files:
             self.append(f)
 
+        #Add default namespaces
+        self.add_namespace("", dfxml.XMLNS_DFXML)
+        self.add_namespace("dc", dfxml.XMLNS_DC)
+
     def __iter__(self):
         """Yields all VolumeObjects, recursively their FileObjects, and the FileObjects directly attached to this DFXMLObject, in that order."""
         for v in self._volumes:
@@ -196,14 +200,6 @@ class DFXMLObject(object):
         tmpel0.append(tmpel1)
         outel.append(tmpel0)
 
-        if len(self.sources) > 0:
-            tmpel0 = ET.Element("source")
-            for source in self.sources:
-                tmpel1 = ET.Element("image_filename")
-                tmpel1.text = source
-                tmpel0.append(tmpel1)
-            outel.append(tmpel0)
-
         if self.command_line:
             tmpel0 = ET.Element("creator")
             tmpel1 = ET.Element("execution_environment")
@@ -212,6 +208,15 @@ class DFXMLObject(object):
             tmpel1.append(tmpel2)
             tmpel0.append(tmpel1)
             outel.append(tmpel0)
+
+        if len(self.sources) > 0:
+            tmpel0 = ET.Element("source")
+            for source in self.sources:
+                tmpel1 = ET.Element("image_filename")
+                tmpel1.text = source
+                tmpel0.append(tmpel1)
+            outel.append(tmpel0)
+
         if self.version:
             outel.attrib["version"] = self.version
 
