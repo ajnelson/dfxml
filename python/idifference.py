@@ -182,6 +182,10 @@ class DiskState:
 
     def process_fi(self,fi):
         global options
+        # Filter out specific filenames create by TSK that are not of use
+        if ignore_filename(fi.filename(), self.include_dotdirs):
+            return 
+
         dprint("processing %s" % str(fi))
         
         #Count granular allocations
@@ -193,10 +197,6 @@ class DiskState:
         if not fi.allocated():
             self.new_unallocated_fis.append(fi)
             return # only look at allocated files
-
-        # Filter out specific filenames create by TSK that are not of use
-        if ignore_filename(fi.filename(), self.include_dotdirs):
-            return 
 
         # Remember the file for the next generation
         self.new_fnames[fi.filename()] = fi
