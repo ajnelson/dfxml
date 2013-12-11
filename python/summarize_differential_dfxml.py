@@ -7,6 +7,7 @@ import logging
 import Objects
 import idifference
 import copy
+import make_differential_dfxml
 
 def enumerated_changes(filelist):
     res = set()
@@ -115,6 +116,10 @@ def main():
         file_alloc_counters.append(FOCounter())
         for (event, obj) in Objects.iterparse(path):
             if not isinstance(obj, Objects.FileObject):
+                continue
+            if event != "end":
+                continue
+            if make_differential_dfxml.ignorable_name(obj.filename):
                 continue
             file_alloc_counters[num].add(obj)
 
