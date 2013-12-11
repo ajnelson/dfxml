@@ -36,8 +36,20 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False):
 
     _expected_diff_modes = ["all", "idifference"]
     if diff_mode not in _expected_diff_modes:
-        raise ValueError("Differencing mode should be in: %r" % _expected_diff_modes)
-    _diff_mode = diff_mode
+        raise ValueError("Differencing mode should be in: %r." % _expected_diff_modes)
+    diff_mask_set = None
+    if diff_mode == "idifference":
+        diff_mask_set = set([
+          "atime",
+          "byte_runs"
+          "crtime",
+          "ctime",
+          "filename",
+          "filesize",
+          "md5",
+          "mtime",
+          "sha1"
+        ])
 
     #d: The container DFXMLObject, ultimately returned.
     d = Objects.DFXMLObject(version="1.1.0")
@@ -90,6 +102,8 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False):
                     continue
 
                 offset = new_obj.partition_offset
+                if offset is None:
+                    raise AttributeError("To perform differencing with volumes, the <volume> elements must have a <partition_offset>.  Either re-generate your DFXML with partition offsets, or run this program again with the --ignore-volumes flag.")
                 ftype_str = new_obj.ftype_str
                 if (offset, ftype_str) in volumes:
                     _logger.debug("Found a volume again, at offset %r." % offset)
@@ -137,26 +151,16 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False):
                 new_fis[key] = new_obj
                 continue
 
+
             if key in old_fis:
                 #Extract the old fileobject and check for changes
                 old_obj = old_fis.pop(key)
                 new_obj.original_fileobject = old_obj
                 new_obj.compare_to_original()
-                new_diffs = new_obj.diffs
-                if _diff_mode == "idifference":
-                    new_diffs &= set([
-                      "atime",
-                      "byte_runs"
-                      "crtime",
-                      "ctime",
-                      "filename",
-                      "filesize",
-                      "md5",
-                      "mtime",
-                      "sha1"
-                    ])
+                if not diff_mask_set is None:
+                    new_obj.diffs &= diff_mask_set
 
-                if len(new_diffs) > 0:
+                if len(new_obj.diffs) > 0:
                     fileobjects_changed.append(new_obj)
                 else:
                     #Unmodified file; only keep if requested.
@@ -247,7 +251,8 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False):
                     new_obj = new_fis_unalloc[key].pop()
                     new_obj.original_fileobject = old_obj
                     new_obj.compare_to_original()
-                    #TODO Apply difference mask here too
+                    if not diff_mask_set is None:
+                        new_obj.diffs &= diff_mask_set
                     #The file might not have changed.  It's interesting if it did, though.
                     if len(new_obj.diffs) > 0:
                         fileobjects_changed.append(new_obj)
@@ -337,6 +342,7 @@ if __name__ == "__main__":
     #TODO Add -i,--ignore: Ignore a particular element if it differs.  nargs="+".  Necessary for comparisons of directories from different systems.
     #TODO Allow --ignore to ignore ftype_str, to compare only file system offsets for partitions
     #TODO Allow --ignore to ignore .inode and/or .partition, to match strictly on names.
+    #TODO Add --ignore-volumes.  It should (probably) strip all volume information from each file.
 
     logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
 
