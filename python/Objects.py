@@ -1925,7 +1925,10 @@ def iterparse(filename, events=("start","end"), dfxmlobject=None):
     _state = READING_START
 
     for (ETevent, elem) in ET.iterparse(fh, events=("start-ns", "start", "end")):
+        #View the object event stream in debug mode
         #_logger.debug("(event, elem) = (%r, %r)" % (ETevent, elem))
+        #if ETevent in ("start", "end"):
+        #    _logger.debug("ET.tostring(elem) = %r" % ET.tostring(elem))
 
         #Track namespaces
         if ETevent == "start-ns":
@@ -1970,8 +1973,8 @@ def iterparse(filename, events=("start","end"), dfxmlobject=None):
                         if "start" in _events:
                             yield ("start", vobj)
                         #Reset
+                        volume_proxy.clear()
                         volume_proxy = None
-                        elem.clear()
                 _state = READING_FILES
         elif ETevent == "end":
             if ln == "fileobject":
