@@ -41,6 +41,8 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False, 
     if diff_mode not in _expected_diff_modes:
         raise ValueError("Differencing mode should be in: %r." % _expected_diff_modes)
     diff_mask_set = set()
+    diff_ignore_set = set()
+
     if diff_mode == "idifference":
         diff_mask_set |= set([
           "atime",
@@ -53,8 +55,9 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False, 
           "mtime",
           "sha1"
         ])
-    diff_mask_set |= ignore_properties
+    diff_ignore_set |= ignore_properties
     _logger.debug("diff_mask_set = " + repr(diff_mask_set))
+    _logger.debug("diff_ignore_set = " + repr(diff_ignore_set))
         
 
     #d: The container DFXMLObject, ultimately returned.
@@ -168,8 +171,12 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False, 
                 new_obj.original_fileobject = old_obj
                 new_obj.compare_to_original()
 
-                if len(new_obj.diffs - diff_mask_set) > 0:
-                    _logger.debug("Remaining diffs: " + repr(new_obj.diffs - diff_mask_set))
+                _diffs = new_obj.diffs - diff_ignore_set
+                if diff_mask_set:
+                    _diffs &= diff_mask_set
+
+                if len(_diffs) > 0:
+                    #_logger.debug("Remaining diffs: " + repr(_diffs))
                     fileobjects_changed.append(new_obj)
                 else:
                     #Unmodified file; only keep if requested.
@@ -261,8 +268,12 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False, 
                     new_obj.original_fileobject = old_obj
                     new_obj.compare_to_original()
                     #The file might not have changed.  It's interesting if it did, though.
-                    if len(new_obj.diffs - diff_mask_set) > 0:
-                        _logger.debug("Remaining diffs: " + repr(new_obj.diffs - diff_mask_set))
+
+                    _diffs = new_obj.diffs - diff_mask_set
+                    if diff_mask_set:
+                        _diffs &= diff_mask_set
+                    if len(_diffs) > 0:
+                        _logger.debug("Remaining diffs: " + repr(_diffs))
                         fileobjects_changed.append(new_obj)
                     elif retain_unchanged:
                         fileobjects_unchanged.append(new_obj)
