@@ -188,6 +188,7 @@ def main():
           ("    Unknown", str(obj_alloc_counters[0].fo_tally_nullalloc_name)),
           ("  Unallocated, unmatched", "TODO"),
           ("Prior image's file (inode) tally", str(obj_alloc_counters[0].inode_tally)),
+          ("  (None, None) a counted (partition, inode)", str((None, None) in obj_alloc_counters[0]._inodes)),
           ("Current image's file (file object) tally", str(obj_alloc_counters[1].fo_tally)),
           ("  Inode allocation", ""),
           ("    Allocated", str(obj_alloc_counters[1].fo_tally_alloc_inode)),
@@ -198,7 +199,8 @@ def main():
           ("    Unallocated", str(obj_alloc_counters[1].fo_tally_unalloc_name)),
           ("    Unknown", str(obj_alloc_counters[1].fo_tally_nullalloc_name)),
           ("  Unallocated, unmatched", "TODO"),
-          ("Current image's file (inode) tally", str(obj_alloc_counters[1].inode_tally))
+          ("Current image's file (inode) tally", str(obj_alloc_counters[1].inode_tally)),
+          ("  (None, None) a counted (partition, inode)", str((None, None) in obj_alloc_counters[1]._inodes))
         ]
 
     summ_recs += [
