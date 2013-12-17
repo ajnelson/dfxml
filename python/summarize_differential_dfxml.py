@@ -26,6 +26,7 @@ class FOCounter(object):
     def __init__(self):
         self._inodes = set()
         self._fo_tally = 0
+        self._fo_unalloc_unmatch_tally = 0
         self._fo_allocation_tallies_inode = {True:0, False:0, None:0}
         self._fo_allocation_tallies_name = {True:0, False:0, None:0}
 
@@ -36,6 +37,8 @@ class FOCounter(object):
 
         self._fo_allocation_tallies_inode[obj.alloc_inode] += 1
         self._fo_allocation_tallies_name[obj.alloc_name] += 1
+        if not (obj.alloc_name and obj.alloc_inode) and obj.original_fileobject is None:
+            self._fo_unalloc_unmatch_tally += 1
 
     @property
     def inode_tally(self):
@@ -44,6 +47,10 @@ class FOCounter(object):
     @property
     def fo_tally(self):
         return self._fo_tally
+
+    @property
+    def fo_unalloc_unmatch_tally(self):
+        return self._fo_unalloc_unmatch_tally
 
     @property
     def fo_tally_alloc_inode(self):
@@ -126,7 +133,7 @@ def main():
       ("    Allocated", str(obj_alloc_counters[0].fo_tally_alloc_name)),
       ("    Unallocated", str(obj_alloc_counters[0].fo_tally_unalloc_name)),
       ("    Unknown", str(obj_alloc_counters[0].fo_tally_nullalloc_name)),
-      ("  Unallocated, unmatched", "TODO"),
+      ("  Unallocated, unmatched", obj_alloc_counters[0].fo_unalloc_unmatch_tally),
       ("Prior image's file (inode) tally", str(obj_alloc_counters[0].inode_tally)),
       ("Current image's file (file object) tally", str(obj_alloc_counters[1].fo_tally)),
       ("  Inode allocation", ""),
@@ -137,7 +144,7 @@ def main():
       ("    Allocated", str(obj_alloc_counters[1].fo_tally_alloc_name)),
       ("    Unallocated", str(obj_alloc_counters[1].fo_tally_unalloc_name)),
       ("    Unknown", str(obj_alloc_counters[1].fo_tally_nullalloc_name)),
-      ("  Unallocated, unmatched", "TODO"),
+      ("  Unallocated, unmatched", obj_alloc_counters[1].fo_unalloc_unmatch_tally),
       ("Current image's file (inode) tally", str(obj_alloc_counters[1].inode_tally)),
       ("", ""),
       ("New files", str(len(new_files))),
