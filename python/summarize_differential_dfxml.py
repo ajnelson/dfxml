@@ -78,8 +78,6 @@ def main():
     changed_files = []
     unchanged_files = []
 
-    original_dfxml_files = []
-
     obj_alloc_counters = [FOCounter(), FOCounter()]
 
     for (event, obj) in Objects.iterparse(args.infile):
@@ -104,27 +102,6 @@ def main():
         elif isinstance(obj, Objects.VolumeObject):
             #TODO
             pass
-        elif isinstance(obj, Objects.DFXMLObject):
-            #Nothing happens with this DFXMLObject after the start.
-            if event != "start":
-                continue
-            for source in obj.sources:
-                _logger.debug("Adding to inspection queue: Source file %r." % source)
-                original_dfxml_files.append(source)
-
-    #Count basic allocation statistics from source files
-    file_alloc_counters = []
-    for (num, path) in enumerate(original_dfxml_files):
-        file_alloc_counters.append(FOCounter())
-        for (event, obj) in Objects.iterparse(path):
-            if not isinstance(obj, Objects.FileObject):
-                continue
-            if event != "end":
-                continue
-            if make_differential_dfxml.ignorable_name(obj.filename):
-                continue
-            file_alloc_counters[num].add(obj)
-
 
     idifference.h2("New files:")
     res = [(obj.mtime, obj.filename or "", obj.filesize) for obj in new_files]
@@ -139,71 +116,29 @@ def main():
     idifference.table(res, break_on_change=True)
 
     idifference.h2("Summary:")
-    summ_recs = None
-    if len(file_alloc_counters) != 2:
-       summ_recs = [
-         ("Prior image's file (file object) tally", "(Unavailable)"),
-         ("Prior image's file (inode) tally", "(Unavailable)"),
-         ("Current image's file (file object) tally", "(Unavailable)"),
-         ("Current image's file (inode) tally", "(Unavailable)"),
-       ]
-    else:
-        summ_recs = [
-          ("From reading the original files", ""),
-          ("Prior image's file (file object) tally", str(file_alloc_counters[0].fo_tally)),
-          ("  Inode allocation", ""),
-          ("    Allocated", str(file_alloc_counters[0].fo_tally_alloc_inode)),
-          ("    Unallocated", str(file_alloc_counters[0].fo_tally_unalloc_inode)),
-          ("    Unknown", str(file_alloc_counters[0].fo_tally_nullalloc_inode)),
-          ("  Name allocation", ""),
-          ("    Allocated", str(file_alloc_counters[0].fo_tally_alloc_name)),
-          ("    Unallocated", str(file_alloc_counters[0].fo_tally_unalloc_name)),
-          ("    Unknown", str(file_alloc_counters[0].fo_tally_nullalloc_name)),
-          ("  Unallocated, unmatched", "TODO"),
-          ("Prior image's file (inode) tally", str(file_alloc_counters[0].inode_tally)),
-          ("Current image's file (file object) tally", str(file_alloc_counters[1].fo_tally)),
-          ("  Inode allocation", ""),
-          ("    Allocated", str(file_alloc_counters[1].fo_tally_alloc_inode)),
-          ("    Unallocated", str(file_alloc_counters[1].fo_tally_unalloc_inode)),
-          ("    Unknown", str(file_alloc_counters[1].fo_tally_nullalloc_inode)),
-          ("  Name allocation", ""),
-          ("    Allocated", str(file_alloc_counters[1].fo_tally_alloc_name)),
-          ("    Unallocated", str(file_alloc_counters[1].fo_tally_unalloc_name)),
-          ("    Unknown", str(file_alloc_counters[1].fo_tally_nullalloc_name)),
-          ("  Unallocated, unmatched", "TODO"),
-          ("Current image's file (inode) tally", str(file_alloc_counters[1].inode_tally)),
-
-          ("", ""),
-          ("", ""),
-          ("From retained objects", ""),
-
-          ("Prior image's file (file object) tally", str(obj_alloc_counters[0].fo_tally)),
-          ("  Inode allocation", ""),
-          ("    Allocated", str(obj_alloc_counters[0].fo_tally_alloc_inode)),
-          ("    Unallocated", str(obj_alloc_counters[0].fo_tally_unalloc_inode)),
-          ("    Unknown", str(obj_alloc_counters[0].fo_tally_nullalloc_inode)),
-          ("  Name allocation", ""),
-          ("    Allocated", str(obj_alloc_counters[0].fo_tally_alloc_name)),
-          ("    Unallocated", str(obj_alloc_counters[0].fo_tally_unalloc_name)),
-          ("    Unknown", str(obj_alloc_counters[0].fo_tally_nullalloc_name)),
-          ("  Unallocated, unmatched", "TODO"),
-          ("Prior image's file (inode) tally", str(obj_alloc_counters[0].inode_tally)),
-          ("  (None, None) a counted (partition, inode)", str((None, None) in obj_alloc_counters[0]._inodes)),
-          ("Current image's file (file object) tally", str(obj_alloc_counters[1].fo_tally)),
-          ("  Inode allocation", ""),
-          ("    Allocated", str(obj_alloc_counters[1].fo_tally_alloc_inode)),
-          ("    Unallocated", str(obj_alloc_counters[1].fo_tally_unalloc_inode)),
-          ("    Unknown", str(obj_alloc_counters[1].fo_tally_nullalloc_inode)),
-          ("  Name allocation", ""),
-          ("    Allocated", str(obj_alloc_counters[1].fo_tally_alloc_name)),
-          ("    Unallocated", str(obj_alloc_counters[1].fo_tally_unalloc_name)),
-          ("    Unknown", str(obj_alloc_counters[1].fo_tally_nullalloc_name)),
-          ("  Unallocated, unmatched", "TODO"),
-          ("Current image's file (inode) tally", str(obj_alloc_counters[1].inode_tally)),
-          ("  (None, None) a counted (partition, inode)", str((None, None) in obj_alloc_counters[1]._inodes))
-        ]
-
-    summ_recs += [
+    summ_recs = [
+      ("Prior image's file (file object) tally", str(obj_alloc_counters[0].fo_tally)),
+      ("  Inode allocation", ""),
+      ("    Allocated", str(obj_alloc_counters[0].fo_tally_alloc_inode)),
+      ("    Unallocated", str(obj_alloc_counters[0].fo_tally_unalloc_inode)),
+      ("    Unknown", str(obj_alloc_counters[0].fo_tally_nullalloc_inode)),
+      ("  Name allocation", ""),
+      ("    Allocated", str(obj_alloc_counters[0].fo_tally_alloc_name)),
+      ("    Unallocated", str(obj_alloc_counters[0].fo_tally_unalloc_name)),
+      ("    Unknown", str(obj_alloc_counters[0].fo_tally_nullalloc_name)),
+      ("  Unallocated, unmatched", "TODO"),
+      ("Prior image's file (inode) tally", str(obj_alloc_counters[0].inode_tally)),
+      ("Current image's file (file object) tally", str(obj_alloc_counters[1].fo_tally)),
+      ("  Inode allocation", ""),
+      ("    Allocated", str(obj_alloc_counters[1].fo_tally_alloc_inode)),
+      ("    Unallocated", str(obj_alloc_counters[1].fo_tally_unalloc_inode)),
+      ("    Unknown", str(obj_alloc_counters[1].fo_tally_nullalloc_inode)),
+      ("  Name allocation", ""),
+      ("    Allocated", str(obj_alloc_counters[1].fo_tally_alloc_name)),
+      ("    Unallocated", str(obj_alloc_counters[1].fo_tally_unalloc_name)),
+      ("    Unknown", str(obj_alloc_counters[1].fo_tally_nullalloc_name)),
+      ("  Unallocated, unmatched", "TODO"),
+      ("Current image's file (inode) tally", str(obj_alloc_counters[1].inode_tally)),
       ("", ""),
       ("New files", str(len(new_files))),
       ("Deleted files", str(len(deleted_files))),
