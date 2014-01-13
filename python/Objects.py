@@ -1099,6 +1099,7 @@ class FileObject(object):
       "sha1",
       "uid",
       "unalloc",
+      "unused",
       "used"
     ])
 
@@ -1299,11 +1300,9 @@ class FileObject(object):
         _append_str("id", self.id)
         _append_str("name_type", self.name_type)
         _append_str("filesize", self.filesize)
-        if self.alloc_name is None and self.alloc_inode is None:
-            _append_bool("alloc", self.alloc)
-        else:
-            _append_bool("alloc_inode", self.alloc_inode)
-            _append_bool("alloc_name", self.alloc_name)
+        _append_bool("alloc", self.alloc)
+        _append_bool("alloc_inode", self.alloc_inode)
+        _append_bool("alloc_name", self.alloc_name)
         _append_bool("used", self.used)
         _append_bool("orphan", self.orphan)
         _append_bool("compressed", self.compressed)
@@ -1355,14 +1354,7 @@ class FileObject(object):
     @property
     def alloc(self):
         """Note that setting .alloc will affect the value of .unalloc, and vice versa.  The last one to set wins."""
-        global _nagged_alloc
-        if not _nagged_alloc:
-            _logger.warning("The FileObject.alloc property is deprecated.  Use .alloc_inode or .alloc_name instead.  .alloc is proxied as True if alloc_inode and alloc_name are both True.")
-            _nagged_alloc = True
-        if self.alloc_inode and self.alloc_name:
-            return True
-        else:
-            return self._alloc
+        return self._alloc
 
     @alloc.setter
     def alloc(self, val):
@@ -1616,12 +1608,24 @@ class FileObject(object):
             self._alloc = not self._unalloc
 
     @property
+    def unused(self):
+        return self._used
+
+    @unused.setter
+    def unused(self, val):
+        self._unused = _intcast(val)
+        if not self._unused is None:
+            self._used = not self._unused
+
+    @property
     def used(self):
         return self._used
 
     @used.setter
     def used(self, val):
         self._used = _intcast(val)
+        if not self._used is None:
+            self._unused = not self._used
 
     @property
     def volume_object(self):

@@ -4,8 +4,8 @@
 For a disk image or DFXML file, this program produces a cross-tabulation of the allocation state of each file's inode and name.
 """
 
-__version__ = "0.1.1"
-#Version 0.2.0:
+__version__ = "0.2.0"
+#Version 0.3.0:
 # * Tabular output in HTML
 # * Tabular output in LaTeX
 
@@ -28,9 +28,12 @@ def main():
             if args.ignore_virtual_files and make_differential_dfxml.ignorable_name(obj.filename):
                 continue
             counter[(obj.alloc_inode, obj.alloc_name)] += 1
+            counter[(obj.alloc, obj.alloc_inode, obj.alloc_name)] += 1
 
             #Inspect weird data
-            if args.debug and obj.alloc_inode is None and obj.alloc_name is None:
+            if args.debug and \
+              obj.alloc_inode is None and \
+              obj.alloc_name is None:
                 _logger.debug("Encountered a file with all-null allocation.")
                 _logger.debug("Event: %r." % event)
                 _logger.debug("Previous object: %s." % ET.tostring(prev_obj.to_Element()))
