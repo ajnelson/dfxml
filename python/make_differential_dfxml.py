@@ -272,6 +272,7 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False, 
                     _diffs = new_obj.diffs - diff_mask_set
                     if diff_mask_set:
                         _diffs &= diff_mask_set
+
                     if len(_diffs) > 0:
                         _logger.debug("Remaining diffs: " + repr(_diffs))
                         fileobjects_changed.append(new_obj)
@@ -308,6 +309,7 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False, 
             d.append(volumes[(voffset, vftype_str)])
 
         #Populate DFXMLObject.
+        content_diffs = set(["md5", "sha1", "mtime"])
         for key in new_fis:
             #TODO If this script ever does a series of >2 DFXML files, these diff additions need to be removed for the next round.
             fi = new_fis[key]
@@ -318,6 +320,13 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False, 
                 fi.diffs.add("_new")
                 appenders[fi.partition].append(fi)
         for fi in fileobjects_deleted:
+            #Independently flag for name, content, and metadata modifications
+            if len(fi.diffs - content_diffs) > 0:
+                fi.diffs.add("_changed")
+            if len(content_diffs.intersection(fi.diffs)) > 0:
+                fi.diffs.add("_modified")
+            if "filename" in fi.diffs:
+                fi.diffs.add("_renamed")
             fi.diffs.add("_deleted")
             appenders[fi.partition].append(fi)
         for key in old_fis:
@@ -333,10 +342,14 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False, 
                 nfi.diffs.add("_deleted")
                 appenders[ofi.partition].append(nfi)
         for fi in fileobjects_renamed:
+            #Independently flag for content and metadata modifications
+            if len(content_diffs.intersection(fi.diffs)) > 0:
+                fi.diffs.add("_modified")
+            if len(fi.diffs - content_diffs) > 0:
+                fi.diffs.add("_changed")
             fi.diffs.add("_renamed")
             appenders[fi.partition].append(fi)
         for fi in fileobjects_changed:
-            content_diffs = set(["md5", "sha1", "mtime"])
             #Independently flag for content and metadata modifications
             if len(content_diffs.intersection(fi.diffs)) > 0:
                 fi.diffs.add("_modified")
