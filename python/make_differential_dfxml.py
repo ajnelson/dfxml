@@ -316,7 +316,6 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False, 
                 obj.diffs.add("_matched")
 
         #Populate DFXMLObject.
-        content_diffs = set(["md5", "sha1", "mtime"])
         for key in new_fis:
             #TODO If this script ever does a series of >2 DFXML files, these diff additions need to be removed for the next round.
             fi = new_fis[key]
