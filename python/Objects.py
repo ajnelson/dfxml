@@ -5,7 +5,7 @@ This file re-creates the major DFXML classes with an emphasis on type safety, se
 Consider this file highly experimental (read: unstable).
 """
 
-__version__ = "0.0.24"
+__version__ = "0.0.27"
 
 #Roadmap to 0.1.0:
 # * Use Object.annos instead of underscore-prefixed Object.diffs
@@ -1266,6 +1266,11 @@ class FileObject(object):
                 el.attrib["delta:changed_property"] = "1"
                 diffs_whittle_set.remove(el.tag)
 
+        def _anno_hash(el):
+            if el.attrib["type"] in self.diffs:
+                el.attrib["delta:changed_property"] = "1"
+                diffs_whittle_set.remove(el.attrib["type"])
+
         #Recall that Element text must be a string
         def _append_str(name, value):
             #TODO Need lookup support for diff annos
@@ -1332,14 +1337,14 @@ class FileObject(object):
             tmpel = ET.Element("hashdigest")
             tmpel.attrib["type"] = "md5"
             tmpel.text = self.md5
-            _anno_change(tmpel)
+            _anno_hash(tmpel)
             outel.append(tmpel)
 
         if self.sha1:
             tmpel = ET.Element("hashdigest")
             tmpel.attrib["type"] = "sha1"
             tmpel.text = self.sha1
-            _anno_change(tmpel)
+            _anno_hash(tmpel)
             outel.append(tmpel)
 
         if self.original_fileobject:
