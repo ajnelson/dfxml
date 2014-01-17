@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-__version__ = "0.1.3"
+__version__ = "0.2.0"
 
 import os
 import logging
@@ -88,17 +88,17 @@ def main():
     unchanged_files = []
 
     obj_alloc_counters = [FOCounter(), FOCounter()]
+    matched_files_tally = 0
 
     def _is_matched(obj):
-        _matched = False
-        for diff in obj.diffs:
-            if diff[0] == "_":
-                _matched = True
-                break
+        _matched = "_matched" in obj.diffs
         return _matched
 
     for (event, obj) in Objects.iterparse(args.infile):
         if isinstance(obj, Objects.FileObject):
+            if "_matched" in obj.diffs:
+                matched_files_tally += 1
+
             #_logger.debug("Inspecting %s for changes" % obj)
             if "_new" in obj.diffs:
                 new_files.append(obj)
@@ -119,6 +119,7 @@ def main():
 
             #Count files of the post image
             if "_deleted" in obj.diffs:
+                #Don't count the "Ghost" files created for deleted files that weren't matched between images
                 if _is_matched(obj):
                     obj_alloc_counters[1].add(obj)
             else:
@@ -166,11 +167,12 @@ def main():
       ("    Unknown", str(obj_alloc_counters[1].fo_tally_nullalloc_name)),
       ("  Unallocated, unmatched", obj_alloc_counters[1].fo_unalloc_unmatch_tally),
       ("Current image's file (inode) tally", str(obj_alloc_counters[1].inode_tally)),
+      ("Matched files", str(matched_files_tally)),
       ("", ""),
       ("New files", str(len(new_files))),
       ("Deleted files", str(len(deleted_files))),
-      ("  Matched", str(len(deleted_files))),
-      ("  Unmatched", str(len(deleted_files))),
+      ("  Unmatched", str(len(deleted_files_unmatched))),
+      ("  Matched", str(len(deleted_files_matched))),
       ("Renamed files", str(len(renamed_files))),
       ("Files with modified content", str(len(modified_files))),
       ("Files with changed file properties", str(len(changed_files)))
@@ -183,7 +185,7 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--debug", action="store_true")
-    parser.add_argument("infile")
+    parser.add_argument("infile", help="A differential DFXML file.  Should include the optional 'delta:matched' attributes for counts to work correctly.")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)

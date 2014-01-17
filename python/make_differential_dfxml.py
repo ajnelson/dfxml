@@ -9,7 +9,7 @@ Produces a differential DFXML file as output.
 This program's main purpose is matching files correctly.  It only performs enough analysis to determine that a fileobject has changed at all.  (This is half of the work done by idifference.py.)
 """
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 import Objects
 import logging
@@ -27,7 +27,7 @@ def ignorable_name(fn):
         return False
     return os.path.basename(fn) in [".", "..", "$FAT1", "$FAT2", "$OrphanFiles"]
 
-def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False, ignore_properties=set()):
+def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False, ignore_properties=set(), annotate_matches=False):
     """
     Takes as input two paths to DFXML files.  Returns a DFXMLObject.
     @param pre String.
@@ -308,6 +308,13 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False, 
         for (voffset, vftype_str) in sorted(volumes.keys()):
             d.append(volumes[(voffset, vftype_str)])
 
+        content_diffs = set(["md5", "sha1", "mtime"])
+
+        def _maybe_match_attr(obj):
+            """Just adds the 'matched' annotation when called."""
+            if annotate_matches:
+                obj.diffs.add("_matched")
+
         #Populate DFXMLObject.
         content_diffs = set(["md5", "sha1", "mtime"])
         for key in new_fis:
@@ -328,6 +335,7 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False, 
             if "filename" in fi.diffs:
                 fi.diffs.add("_renamed")
             fi.diffs.add("_deleted")
+            _maybe_match_attr(fi)
             appenders[fi.partition].append(fi)
         for key in old_fis:
             ofi = old_fis[key]
@@ -348,6 +356,7 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False, 
             if len(fi.diffs - content_diffs) > 0:
                 fi.diffs.add("_changed")
             fi.diffs.add("_renamed")
+            _maybe_match_attr(fi)
             appenders[fi.partition].append(fi)
         for fi in fileobjects_changed:
             #Independently flag for content and metadata modifications
@@ -355,8 +364,10 @@ def make_differential_dfxml(pre, post, diff_mode="all", retain_unchanged=False, 
                 fi.diffs.add("_modified")
             if len(fi.diffs - content_diffs) > 0:
                 fi.diffs.add("_changed")
+            _maybe_match_attr(fi)
             appenders[fi.partition].append(fi)
         for fi in fileobjects_unchanged:
+            _maybe_match_attr(fi)
             appenders[fi.partition].append(fi)
 
         #Output
@@ -369,6 +380,7 @@ if __name__ == "__main__":
     parser.add_argument("--idifference-diffs", action="store_true", help="Only consider the modifications idifference had considered (names, hashes, timestamps).")
     parser.add_argument("-i", "--ignore", action="append", help="Object property to ignore in all difference operations.  E.g. pass '-i inode' to ignore inode differences when comparing directory trees on the same file system.")
     parser.add_argument("--retain-unchanged", action="store_true", help="Output unchanged files in the resulting DFXML file.", default=False)
+    parser.add_argument("--annotate-matches", action="store_true", help="Add a 'dfxml:matched' Boolean attribute to every produced object.  Useful for some counting purposes, but not always needed.", default=False)
     parser.add_argument("infiles", nargs="+")
     args = parser.parse_args()
 
@@ -400,6 +412,7 @@ if __name__ == "__main__":
               post,
               diff_mode="idifference" if args.idifference_diffs else "all",
               retain_unchanged=args.retain_unchanged,
-              ignore_properties=ignore_properties
+              ignore_properties=ignore_properties,
+              annotate_matches=args.annotate_matches
             ).to_dfxml())
             
