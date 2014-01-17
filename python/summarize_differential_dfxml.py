@@ -80,12 +80,22 @@ def main():
     global args
     new_files = []
     deleted_files = []
+    deleted_files_matched = []
+    deleted_files_unmatched = []
     renamed_files = []
     modified_files = []
     changed_files = []
     unchanged_files = []
 
     obj_alloc_counters = [FOCounter(), FOCounter()]
+
+    def _is_matched(obj):
+        _matched = False
+        for diff in obj.diffs:
+            if diff[0] == "_":
+                _matched = True
+                break
+        return _matched
 
     for (event, obj) in Objects.iterparse(args.infile):
         if isinstance(obj, Objects.FileObject):
@@ -94,6 +104,10 @@ def main():
                 new_files.append(obj)
             elif "_deleted" in obj.diffs:
                 deleted_files.append(obj)
+                if _is_matched(obj):
+                    deleted_files_matched.append(obj)
+                else:
+                    deleted_files_unmatched.append(obj)
             elif "_renamed" in obj.diffs:
                 renamed_files.append(obj)
             elif "_modified" in obj.diffs:
@@ -103,7 +117,13 @@ def main():
             else:
                 unchanged_files.append(obj)
 
-            obj_alloc_counters[1].add(obj)
+            #Count files of the post image
+            if "_deleted" in obj.diffs:
+                if _is_matched(obj):
+                    obj_alloc_counters[1].add(obj)
+            else:
+                obj_alloc_counters[1].add(obj)
+            #Count files of the baseline image
             if obj.original_fileobject:
                 obj_alloc_counters[0].add(obj.original_fileobject)
         elif isinstance(obj, Objects.VolumeObject):
@@ -149,6 +169,8 @@ def main():
       ("", ""),
       ("New files", str(len(new_files))),
       ("Deleted files", str(len(deleted_files))),
+      ("  Matched", str(len(deleted_files))),
+      ("  Unmatched", str(len(deleted_files))),
       ("Renamed files", str(len(renamed_files))),
       ("Files with modified content", str(len(modified_files))),
       ("Files with changed file properties", str(len(changed_files)))
