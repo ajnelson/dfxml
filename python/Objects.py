@@ -1362,7 +1362,7 @@ class FileObject(object):
         """Note that setting .alloc will affect the value of .unalloc, and vice versa.  The last one to set wins."""
         global _nagged_alloc
         if not _nagged_alloc:
-            _logger.warning("The FileObject.alloc property is deprecated.  Use .alloc_inode or .alloc_name instead.  .alloc is proxied as True if alloc_inode and alloc_name are both True.")
+            _logger.warning("The FileObject.alloc property is deprecated.  Use .alloc_inode and/or .alloc_name instead.  .alloc is proxied as True if alloc_inode and alloc_name are both True.")
             _nagged_alloc = True
         if self.alloc_inode and self.alloc_name:
             return True
