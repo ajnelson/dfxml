@@ -142,6 +142,9 @@ class DiskState:
         self.changed_file_sha1_tally = 0
         self.changed_filesize_tally = 0
         self.changed_first_byterun_tally = 0
+        self.matched_name_tally = 0
+        self.rename_tally = 0
+        self.rename_and_name_match_tally = 0
         self.next()
         
     def next(self):
@@ -179,6 +182,9 @@ class DiskState:
         self.changed_file_sha1_tally = 0
         self.changed_filesize_tally = 0
         self.changed_first_byterun_tally = 0
+        self.matched_name_tally = 0
+        self.rename_tally = 0
+        self.rename_and_name_match_tally = 0
 
     def process_fi(self,fi):
         global options
@@ -187,7 +193,11 @@ class DiskState:
             return 
 
         dprint("processing %s" % str(fi))
-        
+
+        #Set up a few counting triggers
+        _renamed = False
+        _matched_name = False
+
         #Count granular allocations
         self.new_allocation_inode_tallies[fi.allocated_inode()] += 1
         self.new_allocation_name_tallies[fi.allocated_name()] += 1
@@ -206,6 +216,9 @@ class DiskState:
         # See if a file with this filename had its contents change or properties changed
         ofi = self.fnames.get(fi.filename(),None)
         if ofi:
+            self.matched_name_tally += 1
+            _matched_name = True
+
             dprint("   found ofi")
             any_diff = False
             if ofi.sha1()!=fi.sha1():
@@ -271,7 +284,11 @@ class DiskState:
         if ofi and ofi.filename() != fi.filename() and ofi.sha1()==fi.sha1():
             #Never consider current-directory or parent-directory for rename operations.  Because we match on partition+inode numbers, these trivially match.
             if not (fi.filename().endswith("/.") or fi.filename().endswith("/..") or ofi.filename().endswith("/.") or ofi.filename().endswith("/..")):
+                _renamed = True
+                self.rename_tally += 1
                 self.renamed_files.add((ofi,fi))
+        if _renamed and _matched_name:
+            self.rename_and_name_match_tally += 1
 
     def process(self,fname):
         self.prior_fname = self.current_fname
@@ -507,6 +524,10 @@ class DiskState:
               ("    Unknown", str(self.new_allocation_name_tallies[None])),
               ("  Unallocated, unmatched", str(len(self.new_unallocated_fis))),
               ("Current image's file (inode) tally", str(len(self.new_inodes))),
+              ("Matches:", str(self.matched_name_tally + self.rename_tally - self.rename_and_name_match_tally)),
+              ("  Matched file names", str(self.matched_name_tally)),
+              ("  Renames", str(self.rename_tally)),
+              ("  Matched file names and renames", str(self.rename_and_name_match_tally)),
               ("New files", str(len(self.new_files))),
               ("Deleted files", str(len(self.fnames))),
               ("Renamed files", str(len(self.renamed_files))),
