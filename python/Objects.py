@@ -5,7 +5,7 @@ This file re-creates the major DFXML classes with an emphasis on type safety, se
 Consider this file highly experimental (read: unstable).
 """
 
-__version__ = "0.0.28"
+__version__ = "0.0.29"
 
 #Roadmap to 0.1.0:
 # * Use Object.annos instead of underscore-prefixed Object.diffs
@@ -1450,8 +1450,14 @@ class FileObject(object):
 
     @property
     def diffs(self):
-        """This property intentionally has no setter.  To populate, call compare_to_original() after assigning an original_fileobject.  You can manually populate this with the special diffs "_new", "_deleted", and "_renamed", and these will appear as differential annotations with to_Element()."""
+        """To populate, call compare_to_original() after assigning an original_fileobject.  You can manually populate this with the special diffs "_new", "_deleted", and "_renamed", and these will appear as differential annotations with to_Element()."""
         return self._diffs
+
+    @diffs.setter
+    def diffs(self, val):
+        if not val is None:
+            _typecheck(val, set)
+        self._diffs = val
 
     @property
     def dtime(self):
